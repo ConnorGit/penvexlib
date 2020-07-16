@@ -1,6 +1,8 @@
 # penvexlib
 
-This is a temp readme just used to keep track of the todo when initally building this library:
+---
+
+This is a temp readme just used to keep track of the todo when initially building this library:
 
 ### TODO:
 
@@ -11,3 +13,8 @@ This is a temp readme just used to keep track of the todo when initally building
 - [ ] Macros
 - [ ] Pure Pursuit
 - [ ] Mesh drive
+
+### LINKS:
+
+* https://pros.cs.purdue.edu/v5/api/index.html
+* https://okapilib.github.io/OkapiLib/index.html
