@@ -24,7 +24,7 @@ USE_PACKAGE:=1
 EXCLUDE_COLD_LIBRARIES:=
 
 # Set this to 1 to add additional rules to compile your project as a PROS library template
-IS_LIBRARY:=1
+IS_LIBRARY:=0
 LIBNAME:=penvexlib
 # TODO: Change this for every new version.
 VERSION:=0.0.2
@@ -37,7 +37,7 @@ EXCLUDE_SRC_FROM_LIB+=$(foreach file, $(SRCDIR)/main,$(foreach cext,$(CEXTS),$(f
 # that are in the the include directory get exported
 TEMPLATE_FILES=$(INCDIR)/**/*.h $(INCDIR)/**/*.hpp
 
-.DEFAULT_GOAL=template
+.DEFAULT_GOAL=quick
 
 ################################################################################
 ################################################################################
