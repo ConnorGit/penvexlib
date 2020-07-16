@@ -1,5 +1,5 @@
 #include "main.h"
-// kailyn:)
+
 /**
  * A callback function for LLEMU's center button.
  *
@@ -92,8 +92,3 @@ void opcontrol() {
     pros::delay(20);
   }
 }
-//kosei
-// test in test branch
-//it is I kosei, code incompetent extroardinaire
-//:)
-//uwu
