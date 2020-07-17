@@ -44,18 +44,6 @@ void competition_initialize() {}
  */
 void autonomous() {}
 
-// Opcontrol function prototypes, defined at end of this file.
-void setDriveMethod(signed char driveMethod,
-                    void (**driveFunction)(double, double),
-                    okapi::ControllerAnalog *leftJoy,
-                    okapi::ControllerAnalog *rightJoy);
-
-typedef enum {
-  BASE_CTRL_TANK = 0,
-  BASE_CTRL_ARCADE,
-  BASE_CTRL_CHEESY_BOI
-} baseCtrl;
-
 /**
  * Configuration for the buttons of the robot with the standard syntax:
  * #define SOME_CMD_B buttonBTNID // Use suffix _B for button, _JOY for
@@ -65,7 +53,6 @@ typedef enum {
 /* Main Controller button configuration. */
 
 // Misc
-#define SWITCH_DRIVE_CTRL_B buttonY
 #define RECORD_B buttonDown
 
 /* Main Controller joystick macros. */
@@ -118,14 +105,6 @@ void opcontrol() {
   okapi::ControllerButton buttonR1(okapi::ControllerDigital::R1);
   okapi::ControllerButton buttonR2(okapi::ControllerDigital::R2);
 
-  // used for changing the drive controls on the fly
-  signed char driveMethod = 0;
-  void (*driveFunction)(double, double); // toil and trouble
-  okapi::ControllerAnalog leftJoy, rightJoy;
-
-  // Initalise the drive function
-  // setDriveMethod(driveMethod, &driveFunction, &leftJoy, &rightJoy);
-
   // Stores the currently running macro subsystems using the macro::subsystems
   // enum and bitwise opperations
   unsigned int currentlyUsedMacroSubsystems = 0b0000;
@@ -152,117 +131,19 @@ void opcontrol() {
     // if (ARM_MED_BTN.changedToReleased())
     //   runMacroMedTower();
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////
-
     /////////////////////////////////////////BASE/////////////////////////////////////////////////////////
 
-    ////----------MACRO----
-    // if (currentlyUsedMacroSubsystems & macro::BASE) {
-    //   if (fabs(master.getAnalog(LEFT_Y_JOY)) >= joyMacroBreakThresh ||
-    //       fabs(master.getAnalog(RIGHT_Y_JOY)) >= joyMacroBreakThresh ||
-    //       fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
-    //       fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh)
-    //     macro::breakMacros(macro::BASE);
-    // } else {
-    //   // Drive control:
-    //   /*--------------------------------------------------------------------------------------------------*/
-    //   // Run the drive function
-    //   if (!STACK_PLACE_JOY_B.isPressed() && !ARM_JOY_B.isPressed())
-    //     (*driveFunction)(master.getAnalog(leftJoy),
-    //     master.getAnalog(rightJoy));
-    //   else
-    //     drive::arcade(master.getAnalog(LEFT_Y_JOY),
-    //                   master.getAnalog(LEFT_X_JOY));
-
-    /*--------------------------------------------------------------------------------------------------*/
-
-    /*--------------------------------------------------------------------------------------------------*/
-    // Hold Base
-
-    /*--------------------------------------------------------------------------------------------------*/
-
-    // } ////----MACRO----
-    //////////////////////////////////////////////////////////////////////////////////////////////////////
-
+    (std::dynamic_pointer_cast<okapi::XDriveModel>(base->getModel()))
+        ->xArcade(master.getAnalog(RIGHT_X_JOY), master.getAnalog(RIGHT_Y_JOY),
+                  master.getAnalog(LEFT_X_JOY), 0);
     //////////////////////////////////////////////MISC///////////////////////////////////////////////////
-    // Misc:
 
-    /*--------------------------------------------------------------------------------------------------*/
     // Acavate the record function
     if (RECORD_B.changedToReleased()) {
       // startRecordingVI();
     }
-    /*--------------------------------------------------------------------------------------------------*/
 
-    /*--------------------------------------------------------------------------------------------------*/
-    // Inc the base control var and change the drive function, using
-    // pointers to functions so it dosn't have to make a comparison every
-    // loop
-    if (SWITCH_DRIVE_CTRL_B.changedToPressed()) {
-      driveMethod = (++driveMethod) % 3;
-      // Changes the drive function
-      setDriveMethod(driveMethod, &driveFunction, &leftJoy, &rightJoy);
-    }
-    /*--------------------------------------------------------------------------------------------------*/
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /*--------------------------------------------------------------------------------------------------*/
     // To allow for other threads to run.
     pros::Task::delay(20);
-  }
-}
-
-/**
- * Sets the drive function ptr, and joystick variables pointed to by
- * driveFunction & leftJoy, rightJoy to a drive method determened by the char
- * driveMethod
- *
- * If driveMethod is not a recognised method it defaults to tank control
- *
- * \param driveMethod
- *                    The method to change the other vars to
- * \param driveFunction
- *                    A pointer to the pointer to the drive function
- * \param leftJoy
- *              Contains the left joystick identifier for okapi controllers
- * \param leftJoy
- *              Contains the right joystick identifier for okapi controllers
- */
-void setDriveMethod(signed char driveMethod,
-                    // Pointer to pointer to drive function
-                    void (**driveFunction)(double, double),
-                    okapi::ControllerAnalog *leftJoy,
-                    okapi::ControllerAnalog *rightJoy) {
-  switch (driveMethod) {
-    /*------------------------------------ARCADE-Drive------------------------------------------------*/
-  case (BASE_CTRL_ARCADE):
-    *driveFunction = drive::arcade;
-    *leftJoy = LEFT_Y_JOY;
-    *rightJoy = RIGHT_X_JOY;
-    break;
-    /*------------------------------------------------------------------------------------------------*/
-
-    /*------------------------------------CHEESY--Drive-----------------------------------------------*/
-  case (BASE_CTRL_CHEESY_BOI):
-    *driveFunction = drive::cheesy;
-    *leftJoy = LEFT_Y_JOY;
-    *rightJoy = RIGHT_Y_JOY;
-    break;
-    /*------------------------------------------------------------------------------------------------*/
-
-    // to prevent error, makes the default drive method the one below,
-    // should hopefully never be run
-  default:
-    printf("Undefined drive method selected!\n");
-    printf("Switching to default: tank.\n");
-
-    /*------------------------------------Tank--Drive-------------------------------------------------*/
-  case (BASE_CTRL_TANK):
-    *driveFunction = drive::tank;
-    *leftJoy = LEFT_Y_JOY;
-    *rightJoy = RIGHT_Y_JOY;
-    break;
-    /*------------------------------------------------------------------------------------------------*/
   }
 }
