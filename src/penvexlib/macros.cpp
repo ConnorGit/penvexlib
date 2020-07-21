@@ -9,6 +9,8 @@
 
 namespace penvex::macro {
 
+pros::Mutex runningMacroMutex;
+
 struct runningMacro {
   macroData data; // This stores the subsystem ids and function pointers for the
                   // currently stored macro in the task
@@ -19,6 +21,8 @@ struct runningMacro {
 std::vector<runningMacro> runningMacros;
 
 void breakMacros(unsigned int subsystemsToBreak) {
+  runningMacroMutex.take(TIMEOUT_MAX);
+
   // Bitwise & used as a mask for usedSubsustems
   runningMacros.erase(
       std::remove_if(runningMacros.begin(), runningMacros.end(),
@@ -26,19 +30,22 @@ void breakMacros(unsigned int subsystemsToBreak) {
                        x.macroTask->remove(); // TODO: Does remove leek data?
                        return x.data.usedSubsystems & subsystemsToBreak;
                      }));
+
+  runningMacroMutex.give();
 }
 
 void runMacro(macroData *macroToRun) {
   // End all macros that conflict in subsystem usage
   breakMacros(macroToRun->usedSubsystems);
-  // TODO: Add macro mutexs
   // Run the macro
   runningMacro newMacro;
   newMacro.data = *macroToRun;
   newMacro.macroTask =
       new pros::Task(newMacro.data.macroFunction, NULL, TASK_PRIORITY_DEFAULT,
                      TASK_STACK_DEPTH_DEFAULT, "");
+  runningMacroMutex.take(TIMEOUT_MAX);
   runningMacros.emplace_back(newMacro);
+  runningMacroMutex.give();
 }
 
 std::vector<macroData> getRunningMacroData() {
