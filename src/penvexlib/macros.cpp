@@ -35,6 +35,12 @@ void breakMacros(unsigned int subsystemsToBreak) {
 }
 
 void runMacro(macroData *macroToRun) {
+  // You cant run a macro with no subsystems
+  if (macroToRun->usedSubsystems == 0b0) {
+    printf("Failed to run macro with no subsystems.");
+    return;
+  }
+
   // End all macros that conflict in subsystem usage
   breakMacros(macroToRun->usedSubsystems);
   // Run the macro
@@ -52,7 +58,7 @@ std::vector<macroData> getRunningMacroData() {
   std::vector<macroData> dataReturn;
   for (std::vector<runningMacro>::iterator vectorItter = runningMacros.begin();
        vectorItter != runningMacros.end(); vectorItter++)
-    dataReturn.emplace_back(*vectorItter);
+    dataReturn.emplace_back(vectorItter->data);
   return dataReturn;
 }
 

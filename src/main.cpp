@@ -44,6 +44,8 @@ void competition_initialize() {}
  */
 void autonomous() {}
 
+enum macroIds : unsigned int { DEFAULT = 0b1, BASE = 0b10 };
+
 /**
  * Configuration for the buttons of the robot with the standard syntax:
  * #define SOME_CMD_B buttonBTNID // Use suffix _B for button, _JOY for
@@ -107,7 +109,7 @@ void opcontrol() {
 
   // Stores the currently running macro subsystems using the macro::subsystems
   // enum and bitwise opperations
-  unsigned int currentlyUsedMacroSubsystems = 0b0000;
+  unsigned int currentlyUsedMacroSubsystems = 0b0;
 
   // Used for breaking the base macros if a controller joystick exceeds a
   // certain value
@@ -122,20 +124,30 @@ void opcontrol() {
 
     /////////////////////////////////////////MACRO/////////////////////////////////////////////////////////
     // Macro controll and handeling:
-    // currentlyUsedMacroSubsystems = macro::getAllUsedSubsystems();
+    currentlyUsedMacroSubsystems = penvex::macro::getAllUsedSubsystems();
 
-    // if (buttonUp.changedToReleased())
-    //   runMacroTest();
+    if (buttonUp.changedToReleased())
+      runMacroTest();
     // if (ARM_LOW_BTN.changedToReleased())
     //   runMacroLowTower();
     // if (ARM_MED_BTN.changedToReleased())
     //   runMacroMedTower();
 
     /////////////////////////////////////////BASE/////////////////////////////////////////////////////////
-
-    (std::dynamic_pointer_cast<okapi::XDriveModel>(base->getModel()))
-        ->xArcade(master.getAnalog(RIGHT_X_JOY), master.getAnalog(RIGHT_Y_JOY),
-                  master.getAnalog(LEFT_X_JOY), 0);
+    ////----------MACRO----
+    if (currentlyUsedMacroSubsystems & BASE) {
+      if (fabs(master.getAnalog(LEFT_Y_JOY)) >= joyMacroBreakThresh ||
+          fabs(master.getAnalog(RIGHT_Y_JOY)) >= joyMacroBreakThresh ||
+          fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
+          fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh)
+        penvex::macro::breakMacros(BASE);
+    } else {
+      // Drive Control:
+      (std::dynamic_pointer_cast<okapi::XDriveModel>(base->getModel()))
+          ->xArcade(master.getAnalog(RIGHT_X_JOY),
+                    master.getAnalog(RIGHT_Y_JOY), master.getAnalog(LEFT_X_JOY),
+                    0);
+    } ////----MACRO----
     //////////////////////////////////////////////MISC///////////////////////////////////////////////////
 
     // Acavate the record function

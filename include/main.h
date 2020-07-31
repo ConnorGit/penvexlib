@@ -42,6 +42,8 @@
 #include "okapi/api.hpp"
 //#include "pros/api_legacy.h"
 
+#include "scripts.hpp"
+
 #include "penvexlib/macros.hpp"
 
 /**

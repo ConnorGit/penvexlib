@@ -31,7 +31,7 @@ typedef struct {
 subsystems given.
  *
  * \Param subsystemsToBreak The ids of the subsystems that if a currently
-running macro matches will cause the running macro to terminate.
+ * running macro matches will cause the running macro to terminate.
  */
 extern void breakMacros(unsigned int subsystemsToBreak);
 
