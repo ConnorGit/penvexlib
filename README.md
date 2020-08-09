@@ -15,6 +15,7 @@ This is a temp readme just used to keep track of the todo when initially buildin
 - [ ] Mesh drive
 - [ ] Add tests to code
 - [ ] Filtering and actual error propagation maybe
+- [ ] Dist PID holonomic
 
 ### LINKS:
 
