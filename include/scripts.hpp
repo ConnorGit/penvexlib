@@ -11,7 +11,7 @@
 
 // Macros
 
-extern penvex::macro::macroData *macroTest_data;
+extern const penvex::macro::macroData macroTest_data;
 extern void runMacroTest();
 
 #endif // _SCRIPTS_HPP_

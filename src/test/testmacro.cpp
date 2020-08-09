@@ -24,9 +24,9 @@ void macroTest(void *) {
  * run in its own task and a identifactaion for the subsystems running in it to
  * allow the macro to break if a subsystem is interupted.
  */
-macroData *macroTest_data = new macroData{macroTest, 0b11};
+const macroData macroTest_data{0b11, macroTest};
 
 /**
  * THis function will run the macro.
  */
-void runMacroTest() { runMacro(macroTest_data); }
+void runMacroTest() { runMacro(&macroTest_data); }

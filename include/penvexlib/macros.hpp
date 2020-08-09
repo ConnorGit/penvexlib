@@ -22,8 +22,11 @@ namespace penvex::macro {
  * Struct used to store the data to run a macro.
  */
 typedef struct {
-  void (*macroFunction)(void *);
   unsigned int usedSubsystems;
+  void (*macroFunction)(void *);
+  std::uint32_t prio = TASK_PRIORITY_DEFAULT;
+  std::uint16_t stack_depth = TASK_STACK_DEPTH_DEFAULT;
+  const char *name = "";
 } macroData;
 
 /**
@@ -42,7 +45,7 @@ extern void breakMacros(unsigned int subsystemsToBreak);
  *
  * \Param macroToRun pointer to the macroData of the macro to run.
  */
-extern void runMacro(macroData *macroToRun);
+extern void runMacro(const macroData *macroToRun, void *macroFuncParams = NULL);
 
 /**
  * Gets a list of the currently running macros.
