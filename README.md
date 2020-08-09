@@ -7,7 +7,7 @@ This is a temp readme just used to keep track of the todo when initially buildin
 ### TODO:
 
 - [x] Make initial template
-- [ ] Get basic bot control
+- [x] Get basic bot control
 - [ ] Test bot control
 - [ ] Rec Auton
 - [x] Macros
