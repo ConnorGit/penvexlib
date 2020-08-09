@@ -45,7 +45,7 @@ void breakMacros(unsigned int subsystemsToBreak) {
   runningMacroMutex.give();
 }
 
-void runMacro(macroData *macroToRun, void *macroFuncParams) {
+void runMacro(const macroData *macroToRun, void *macroFuncParams) {
   // You cant run a macro with no subsystems
   if (macroToRun->usedSubsystems == 0b0) {
     printf("Failed to run macro with no subsystems.");
