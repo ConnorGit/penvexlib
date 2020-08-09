@@ -10,9 +10,11 @@ This is a temp readme just used to keep track of the todo when initially buildin
 - [ ] Get basic bot control
 - [ ] Test bot control
 - [ ] Rec Auton
-- [ ] Macros
+- [x] Macros
 - [ ] Pure Pursuit
 - [ ] Mesh drive
+- [ ] Add tests to code
+- [ ] Filtering and actual error propagation maybe
 
 ### LINKS:
 
