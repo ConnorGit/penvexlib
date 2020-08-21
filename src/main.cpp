@@ -54,6 +54,14 @@ enum macroIds : unsigned int { DEFAULT = 0b1, BASE = 0b10 };
 
 /* Main Controller button configuration. */
 
+// Intake
+#define INTAKE_IN_B buttonR1
+#define INTAKE_OUT_B buttonR2
+
+// Intake
+#define OUTTAKE_UP_B buttonL1
+#define OUTTAKE_DWN_B buttonL2
+
 // Misc
 #define RECORD_B buttonDown
 
@@ -80,7 +88,7 @@ enum macroIds : unsigned int { DEFAULT = 0b1, BASE = 0b10 };
 void opcontrol() {
   auto base =
       okapi::ChassisControllerBuilder()
-          .withMotors(1, 2. - 3, -4)
+          .withMotors(16, -13, -18, 17)
           .withSensors(okapi::ADIEncoder{'A', 'B'}, okapi::ADIEncoder{'C', 'D'},
                        okapi::ADIEncoder{'E', 'F'})
           .withDimensions(okapi::AbstractMotor::gearset::green,
@@ -91,6 +99,10 @@ void opcontrol() {
                      )
           .withOdometry({{17.0, 17.0}, 3600})
           .buildOdometry();
+
+  okapi::MotorGroup intake({-1, 2});
+
+  okapi::MotorGroup outtake({9, -10});
 
   okapi::Controller master(okapi::ControllerId::master);
 
@@ -144,10 +156,18 @@ void opcontrol() {
     } else {
       // Drive Control:
       (std::dynamic_pointer_cast<okapi::XDriveModel>(base->getModel()))
-          ->xArcade(master.getAnalog(RIGHT_X_JOY),
-                    master.getAnalog(RIGHT_Y_JOY), master.getAnalog(LEFT_X_JOY),
-                    0);
+          ->xArcade(master.getAnalog(LEFT_X_JOY), master.getAnalog(LEFT_Y_JOY),
+                    master.getAnalog(RIGHT_X_JOY), 0);
     } ////----MACRO----
+
+    /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
+    intake.moveVelocity(200 *
+                        (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
+
+    /////////////////////////////////////////////OUTTAKE/////////////////////////////////////////////////
+    outtake.moveVelocity(
+        600 * (OUTTAKE_UP_B.isPressed() - OUTTAKE_DWN_B.isPressed()));
+
     //////////////////////////////////////////////MISC///////////////////////////////////////////////////
 
     // Acavate the record function
