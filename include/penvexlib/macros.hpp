@@ -30,6 +30,11 @@ typedef struct {
 } macroData;
 
 /**
+ * This initalises the data neccary for to run macros, this could take a bit so run it in initalize.
+ */
+extern void init();
+
+/**
  * Removes the currently running macros whose subsystems conflict with the
 subsystems given.
  *

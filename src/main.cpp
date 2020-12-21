@@ -11,6 +11,8 @@ void initialize() {
       okapi::TimeUtilFactory::createDefault().getTimer(),
       "/ser/sout", // Output to the PROS terminal
       okapi::Logger::LogLevel::warn));
+
+  penvex::macro::init();
 }
 
 /**
@@ -59,8 +61,8 @@ enum macroIds : unsigned int { DEFAULT = 0b1, BASE = 0b10 };
 #define INTAKE_OUT_B buttonR2
 
 // Intake
-#define OUTTAKE_UP_B buttonL1
-#define OUTTAKE_DWN_B buttonL2
+#define CONVEYOR_UP_B buttonL1
+#define CONVEYOR_DWN_B buttonL2
 
 // Misc
 #define RECORD_B buttonDown
@@ -88,21 +90,22 @@ enum macroIds : unsigned int { DEFAULT = 0b1, BASE = 0b10 };
 void opcontrol() {
   auto base =
       okapi::ChassisControllerBuilder()
-          .withMotors(16, -13, -18, 17)
-          .withSensors(okapi::ADIEncoder{'A', 'B'}, okapi::ADIEncoder{'C', 'D'},
-                       okapi::ADIEncoder{'E', 'F'})
-          .withDimensions(okapi::AbstractMotor::gearset::green,
+          .withMotors({-20, -19}, {18, 17})
+          // .withSensors(okapi::ADIEncoder{'A', 'B'}, okapi::ADIEncoder{'C',
+          // 'D'},
+          //              okapi::ADIEncoder{'E', 'F'})
+          .withDimensions(okapi::AbstractMotor::gearset::red,
                           {{17.0, 17.0}, 3600})
-          .withGains({0.1, 0.0001, 0.01}, // Distance controller gains
-                     {0.1, 0.0001, 0.01}, // Turn controller gains
-                     {0.1, 0.0001, 0.01}  // Angle controller gains
-                     )
-          .withOdometry({{17.0, 17.0}, 3600})
-          .buildOdometry();
+          // .withGains({0.1, 0.0001, 0.01}, // Distance controller gains
+          //            {0.1, 0.0001, 0.01}, // Turn controller gains
+          //            {0.1, 0.0001, 0.01}  // Angle controller gains
+          //            )
+          // .withOdometry({{17.0, 17.0}, 3600})
+          .build();
 
-  okapi::MotorGroup intake({-1, 2});
+  okapi::MotorGroup intake({-15, 10});
 
-  okapi::MotorGroup outtake({9, -10});
+  okapi::MotorGroup conveyor({14, -9});
 
   okapi::Controller master(okapi::ControllerId::master);
 
@@ -125,7 +128,7 @@ void opcontrol() {
 
   // Used for breaking the base macros if a controller joystick exceeds a
   // certain value
-  const float joyMacroBreakThresh = 0.3;
+  const float joyMacroBreakThresh = 0.1;
 
   base->getModel()->resetSensors();
 
@@ -136,10 +139,23 @@ void opcontrol() {
 
     /////////////////////////////////////////MACRO/////////////////////////////////////////////////////////
     // Macro controll and handeling:
-    currentlyUsedMacroSubsystems = penvex::macro::getAllUsedSubsystems();
+    // currentlyUsedMacroSubsystems = penvex::macro::getAllUsedSubsystems();
+    // printf("Current: %d %d %d\n", (currentlyUsedMacroSubsystems & 0b100),
+    //        (currentlyUsedMacroSubsystems & 0b010),
+    //        (currentlyUsedMacroSubsystems & 0b001));
+    //
+    // if (buttonUp.changedToReleased())
+    //   runMacroTest();
+    //
+    // if (buttonDown.changedToReleased())
+    //   penvex::macro::breakMacros(0b011);
+    //
+    // if (buttonLeft.changedToReleased())
+    //   runMacroTest2();
+    //
+    // if (buttonRight.changedToReleased())
+    //   penvex::macro::breakMacros(0b100);
 
-    if (buttonUp.changedToReleased())
-      runMacroTest();
     // if (ARM_LOW_BTN.changedToReleased())
     //   runMacroLowTower();
     // if (ARM_MED_BTN.changedToReleased())
@@ -147,26 +163,26 @@ void opcontrol() {
 
     /////////////////////////////////////////BASE/////////////////////////////////////////////////////////
     ////----------MACRO----
-    if (currentlyUsedMacroSubsystems & BASE) {
-      if (fabs(master.getAnalog(LEFT_Y_JOY)) >= joyMacroBreakThresh ||
-          fabs(master.getAnalog(RIGHT_Y_JOY)) >= joyMacroBreakThresh ||
-          fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
-          fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh)
-        penvex::macro::breakMacros(BASE);
-    } else {
-      // Drive Control:
-      (std::dynamic_pointer_cast<okapi::XDriveModel>(base->getModel()))
-          ->xArcade(master.getAnalog(LEFT_X_JOY), master.getAnalog(LEFT_Y_JOY),
-                    master.getAnalog(RIGHT_X_JOY), 0);
-    } ////----MACRO----
+    // if (currentlyUsedMacroSubsystems & BASE) {
+    //   if (fabs(master.getAnalog(LEFT_Y_JOY)) >= joyMacroBreakThresh ||
+    //       fabs(master.getAnalog(RIGHT_Y_JOY)) >= joyMacroBreakThresh ||
+    //       fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
+    //       fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh)
+    //     penvex::macro::breakMacros(BASE);
+    // } else {
+    //   // Drive Control:
+    //   printf("usercontrol\n");
+    (std::dynamic_pointer_cast<okapi::SkidSteerModel>(base->getModel()))
+        ->tank(master.getAnalog(LEFT_Y_JOY), master.getAnalog(RIGHT_Y_JOY));
+    // } ////----MACRO----
 
     /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
-    intake.moveVelocity(200 *
-                        (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
+    intake.moveVoltage(12000 *
+                       (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
 
-    /////////////////////////////////////////////OUTTAKE/////////////////////////////////////////////////
-    outtake.moveVelocity(
-        600 * (OUTTAKE_UP_B.isPressed() - OUTTAKE_DWN_B.isPressed()));
+    /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
+    conveyor.moveVoltage(
+        12000 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
 
     //////////////////////////////////////////////MISC///////////////////////////////////////////////////
 
@@ -176,6 +192,6 @@ void opcontrol() {
     }
 
     // To allow for other threads to run.
-    pros::Task::delay(20);
+    pros::Task::delay(100);
   }
 }

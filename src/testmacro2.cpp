@@ -12,9 +12,9 @@ using namespace penvex::macro;
 /**
  * The macro function to run.
  */
-void macroTest(void *) {
+void macroTest2(void *) {
   while (true) {
-    printf("\nrunning macroTest");
+    printf("\nrunning macroTest2");
     pros::Task::delay(100);
   }
 }
@@ -24,9 +24,9 @@ void macroTest(void *) {
  * run in its own task and a identifactaion for the subsystems running in it to
  * allow the macro to break if a subsystem is interupted.
  */
-const macroData macroTest_data{0b011, macroTest};
+const macroData macroTest2_data{0b100, macroTest2};
 
 /**
  * THis function will run the macro.
  */
-void runMacroTest() { runMacro(&macroTest_data); }
+void runMacroTest2() { runMacro(&macroTest2_data); }
