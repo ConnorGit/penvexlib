@@ -4,18 +4,24 @@
 
 This is a temp readme just used to keep track of the todo when initially building this library:
 
+Macros
+Odom
+Mesh
+PP
+MP
+Rec - good
+Basic logger
+
 ### TODO:
 
 - [x] Make initial template
 - [x] Get basic bot control
 - [ ] Test bot control
 - [ ] Rec Auton
-- [x] Macros
+- [ ] Macros
 - [ ] Pure Pursuit
 - [ ] Mesh drive
-- [ ] Add tests to code
-- [ ] Filtering and actual error propagation maybe
-- [ ] Dist PID holonomic
+- [ ] Dist PID
 
 ### LINKS:
 

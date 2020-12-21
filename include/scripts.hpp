@@ -9,12 +9,17 @@
 
 #include "penvexlib/macros.hpp"
 
+namespace scripts {
+
 // Macros
 
-extern const penvex::macro::macroData macroTest_data;
+extern penvex::macro::macroData macroTest_data;
 extern void runMacroTest();
+extern void initMacroTest();
 
-extern const penvex::macro::macroData macroTest2_data;
+extern penvex::macro::macroData macroTest2_data;
 extern void runMacroTest2();
+extern void initMacroTest2();
 
+} // namespace scripts
 #endif // _SCRIPTS_HPP_

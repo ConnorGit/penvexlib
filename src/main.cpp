@@ -1,5 +1,8 @@
 #include "main.h"
 
+// Defs:
+const unsigned int penvex::macro::numberOfSubsystems = 2;
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -12,7 +15,8 @@ void initialize() {
       "/ser/sout", // Output to the PROS terminal
       okapi::Logger::LogLevel::warn));
 
-  penvex::macro::init();
+  scripts::initMacroTest();
+  scripts::initMacroTest2();
 }
 
 /**
@@ -45,8 +49,6 @@ void competition_initialize() {}
  * from where it left off.
  */
 void autonomous() {}
-
-enum macroIds : unsigned int { DEFAULT = 0b1, BASE = 0b10 };
 
 /**
  * Configuration for the buttons of the robot with the standard syntax:
@@ -139,42 +141,32 @@ void opcontrol() {
 
     /////////////////////////////////////////MACRO/////////////////////////////////////////////////////////
     // Macro controll and handeling:
-    // currentlyUsedMacroSubsystems = penvex::macro::getAllUsedSubsystems();
-    // printf("Current: %d %d %d\n", (currentlyUsedMacroSubsystems & 0b100),
-    //        (currentlyUsedMacroSubsystems & 0b010),
-    //        (currentlyUsedMacroSubsystems & 0b001));
-    //
-    // if (buttonUp.changedToReleased())
-    //   runMacroTest();
-    //
-    // if (buttonDown.changedToReleased())
-    //   penvex::macro::breakMacros(0b011);
-    //
-    // if (buttonLeft.changedToReleased())
-    //   runMacroTest2();
-    //
-    // if (buttonRight.changedToReleased())
-    //   penvex::macro::breakMacros(0b100);
+    currentlyUsedMacroSubsystems = penvex::macro::getAllUsedSubsystems();
 
-    // if (ARM_LOW_BTN.changedToReleased())
-    //   runMacroLowTower();
-    // if (ARM_MED_BTN.changedToReleased())
-    //   runMacroMedTower();
+    if (buttonUp.changedToReleased())
+      scripts::runMacroTest();
+
+    if (buttonDown.changedToReleased())
+      penvex::macro::breakMacros(0b01);
+
+    if (buttonLeft.changedToReleased())
+      scripts::runMacroTest2();
+
+    if (buttonRight.changedToReleased())
+      penvex::macro::breakMacros(0b10);
 
     /////////////////////////////////////////BASE/////////////////////////////////////////////////////////
     ////----------MACRO----
-    // if (currentlyUsedMacroSubsystems & BASE) {
-    //   if (fabs(master.getAnalog(LEFT_Y_JOY)) >= joyMacroBreakThresh ||
-    //       fabs(master.getAnalog(RIGHT_Y_JOY)) >= joyMacroBreakThresh ||
-    //       fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
-    //       fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh)
-    //     penvex::macro::breakMacros(BASE);
-    // } else {
-    //   // Drive Control:
-    //   printf("usercontrol\n");
-    (std::dynamic_pointer_cast<okapi::SkidSteerModel>(base->getModel()))
-        ->tank(master.getAnalog(LEFT_Y_JOY), master.getAnalog(RIGHT_Y_JOY));
-    // } ////----MACRO----
+    if (currentlyUsedMacroSubsystems & BASE) {
+      if (fabs(master.getAnalog(LEFT_Y_JOY)) >= joyMacroBreakThresh ||
+          fabs(master.getAnalog(RIGHT_Y_JOY)) >= joyMacroBreakThresh ||
+          fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
+          fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh)
+        penvex::macro::breakMacros(BASE);
+    } else {
+      (std::dynamic_pointer_cast<okapi::SkidSteerModel>(base->getModel()))
+          ->tank(master.getAnalog(LEFT_Y_JOY), master.getAnalog(RIGHT_Y_JOY));
+    } ////----MACRO----
 
     /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
     intake.moveVoltage(12000 *
@@ -192,6 +184,6 @@ void opcontrol() {
     }
 
     // To allow for other threads to run.
-    pros::Task::delay(100);
+    pros::Task::delay(20);
   }
 }
