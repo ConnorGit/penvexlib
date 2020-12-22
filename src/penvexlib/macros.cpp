@@ -21,24 +21,24 @@ macroData *runningMacros[numberOfSubsystemsBuffer] = {nullptr, nullptr, nullptr,
                                                       nullptr, nullptr};
 
 void breakMacros(unsigned int subsystemsToBreak) {
-  runningMacroMutex.take(TIMEOUT_MAX);
 
   // Bitwise & used as a mask for usedSubsustems
   for (int i = 0; i < numberOfSubsystems; i++)
     if ((runningMacros[i] != nullptr) &&
         (runningMacros[i]->usedSubsystems & subsystemsToBreak)) {
 
-      runningMacros[i]->macroTask->suspend();
-      printf("removing one/n");
+      macroData *macroToBreak = runningMacros[i];
 
-      // NOTRE: WARNING MAKE SURE NOT TO LEAK MEMORY ON REMOVED TASKS
-      if (runningMacros[i]->restartOnBreak)
-        runningMacros[i]->macroTask->remove();
-
+      runningMacroMutex.take(TIMEOUT_MAX);
       runningMacros[i] = nullptr;
-    }
+      runningMacroMutex.give();
 
-  runningMacroMutex.give();
+      macroToBreak->macroTask->suspend();
+
+      // NOTE: WARNING MAKE SURE NOT TO LEAK MEMORY ON REMOVED TASKS
+      if (macroToBreak->restartOnBreak)
+        macroToBreak->macroTask->remove();
+    }
 }
 
 void runMacro(macroData *macroToRun, void *macroFuncParams) {
@@ -82,6 +82,22 @@ void initMacro(macroData *macroToRun, void *macroFuncParams) {
   for (int i = 0; i < numberOfSubsystems; i++)
     if (runningMacros[i] == macroToRun)
       runningMacros[i] = nullptr;
+}
+
+void endMacro(unsigned int subsystemsToBreak) {
+
+  // Bitwise & used as a mask for usedSubsustems
+  for (int i = 0; i < numberOfSubsystems; i++)
+    if ((runningMacros[i] != nullptr) &&
+        (runningMacros[i]->usedSubsystems & subsystemsToBreak)) {
+
+      if (!runningMacros[i]->restartOnBreak)
+        printf("ERROR: Non-restart macros should never end.");
+
+      runningMacroMutex.take(TIMEOUT_MAX);
+      runningMacros[i] = nullptr;
+      runningMacroMutex.give();
+    }
 }
 
 macroData **getRunningMacroData(macroData *fillArr[]) {

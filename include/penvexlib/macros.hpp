@@ -59,6 +59,11 @@ extern void runMacro(macroData *macroToRun, void *macroFuncParams = NULL);
 extern void initMacro(macroData *macroToRun, void *macroFuncParams = NULL);
 
 /**
+ * This should only be called at the end of a restart macro to remove it form the list of running macros.
+ */
+extern void endMacro(unsigned int subsystemsToBreak);
+
+/**
  * Fills an array of size numberOfSubsystems and type macroData with pointers to
  * the currently running macros.
  *

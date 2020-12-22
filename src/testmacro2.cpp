@@ -8,18 +8,23 @@
 #include "main.h"
 
 using namespace penvex::macro;
+using namespace okapi::literals;
 
 namespace scripts {
+
+/**
+ * The identifacation of the subsystems running in this macro - must not be 0.
+ */
+const unsigned int used_subsystems = 0b10;
 
 /**
  * The macro function to run.
  */
 void macroTest2(void *) {
-  printf("\nstarting macroTest2");
-  while (true) {
-    printf("\nrunning macroTest2");
-    pros::Task::delay(300);
-  }
+  base->moveDistance(24_in);
+
+  // Must have this line at the end of the macro
+  endMacro(used_subsystems);
 }
 
 /**
@@ -31,7 +36,7 @@ void macroTest2(void *) {
  * must be cleaned by annother task.
  */
 
-macroData macroTest2_data{0b10, macroTest2, true};
+macroData macroTest2_data{used_subsystems, macroTest2, true};
 
 /**
  * THis function will run the macro.

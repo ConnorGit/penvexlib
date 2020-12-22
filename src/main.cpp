@@ -3,6 +3,23 @@
 // Defs:
 const unsigned int penvex::macro::numberOfSubsystems = 2;
 
+using namespace okapi::literals;
+okapi::ChassisScales baseScales({2.75_in, 14.3125_in, 5.1875_in, 4.58333333_in},
+                                600);
+std::shared_ptr<okapi::OdomChassisController> base =
+    okapi::ChassisControllerBuilder()
+        .withMotors({-20, -19}, {18, 17})
+        .withSensors(okapi::IntegratedEncoder{19, true},
+                     okapi::IntegratedEncoder{17, false},
+                     okapi::ADIEncoder{'G', 'H', true})
+        .withDimensions(okapi::AbstractMotor::gearset::red, baseScales)
+        .withGains({0.001, 0.0, 0.0}, // Distance controller gains
+                   {0.0, 0.0, 0.0},   // Turn controller gains
+                   {0.0, 0.0, 0.0}    // Angle controller gains
+                   )
+        .withOdometry(baseScales)
+        .buildOdometry();
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -92,22 +109,6 @@ void autonomous() {}
 void opcontrol() {
   // okapi::ChassisScales baseScales(
   //     {(5570 / 2.05105), 8.63636363637, 0.1317625, (3200 / 1.9558)}, 1800);
-  using namespace okapi::literals;
-  okapi::ChassisScales baseScales(
-      {2.75_in, 14.3125_in, 5.1875_in, 4.58333333_in}, 600);
-  auto base =
-      okapi::ChassisControllerBuilder()
-          .withMotors({-20, -19}, {18, 17})
-          .withSensors(okapi::IntegratedEncoder{19, true},
-                       okapi::IntegratedEncoder{17, false},
-                       okapi::ADIEncoder{'G', 'H', true})
-          .withDimensions(okapi::AbstractMotor::gearset::red, baseScales)
-          // .withGains({0.1, 0.0001, 0.01}, // Distance controller gains
-          //            {0.1, 0.0001, 0.01}, // Turn controller gains
-          //            {0.1, 0.0001, 0.01}  // Angle controller gains
-          //            )
-          .withOdometry(baseScales)
-          .buildOdometry();
 
   okapi::MotorGroup intake({-15, 10});
 
@@ -159,9 +160,10 @@ void opcontrol() {
       scripts::runMacroTest();
 
     if (buttonDown.changedToReleased()) {
-      // penvex::macro::breakMacros(0b01);
-      testStr = base->getOdometry()->getState().str();
-      printf("%s\n", testStr.c_str());
+      penvex::macro::breakMacros(0b01);
+      // testStr = base->getOdometry()->getState().str();
+      // printf("%s\n", testStr.c_str());
+      printf("%d\n", currentlyUsedMacroSubsystems);
     }
 
     if (buttonLeft.changedToReleased())
@@ -176,8 +178,10 @@ void opcontrol() {
       if (fabs(master.getAnalog(LEFT_Y_JOY)) >= joyMacroBreakThresh ||
           fabs(master.getAnalog(RIGHT_Y_JOY)) >= joyMacroBreakThresh ||
           fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
-          fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh)
+          fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh) {
         penvex::macro::breakMacros(BASE);
+        base->stop();
+      }
     } else {
       (std::dynamic_pointer_cast<okapi::SkidSteerModel>(base->getModel()))
           ->tank(master.getAnalog(LEFT_Y_JOY), master.getAnalog(RIGHT_Y_JOY));
