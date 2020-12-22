@@ -78,6 +78,10 @@ void initMacro(macroData *macroToRun, void *macroFuncParams) {
   macroToRun->macroTask->suspend();
 
   macroToRun->prio = tempPrio;
+
+  for (int i = 0; i < numberOfSubsystems; i++)
+    if (runningMacros[i] == macroToRun)
+      runningMacros[i] = nullptr;
 }
 
 macroData **getRunningMacroData(macroData *fillArr[]) {

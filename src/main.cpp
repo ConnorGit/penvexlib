@@ -90,22 +90,30 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
+  // okapi::ChassisScales baseScales(
+  //     {(5570 / 2.05105), 8.63636363637, 0.1317625, (3200 / 1.9558)}, 1800);
+  using namespace okapi::literals;
+  okapi::ChassisScales baseScales(
+      {2.75_in, 14.3125_in, 5.1875_in, 4.58333333_in}, 600);
   auto base =
       okapi::ChassisControllerBuilder()
           .withMotors({-20, -19}, {18, 17})
-          // .withSensors(okapi::ADIEncoder{'A', 'B'}, okapi::ADIEncoder{'C',
-          // 'D'},
-          //              okapi::ADIEncoder{'E', 'F'})
-          .withDimensions(okapi::AbstractMotor::gearset::red,
-                          {{17.0, 17.0}, 3600})
+          .withSensors(okapi::IntegratedEncoder{19, true},
+                       okapi::IntegratedEncoder{17, false},
+                       okapi::ADIEncoder{'G', 'H', true})
+          .withDimensions(okapi::AbstractMotor::gearset::red, baseScales)
           // .withGains({0.1, 0.0001, 0.01}, // Distance controller gains
           //            {0.1, 0.0001, 0.01}, // Turn controller gains
           //            {0.1, 0.0001, 0.01}  // Angle controller gains
           //            )
-          // .withOdometry({{17.0, 17.0}, 3600})
-          .build();
+          .withOdometry(baseScales)
+          .buildOdometry();
 
   okapi::MotorGroup intake({-15, 10});
+
+  okapi::IntegratedEncoder testL{19, true};
+  okapi::IntegratedEncoder testR{17, false};
+  okapi::ADIEncoder testM{'G', 'H', true};
 
   okapi::MotorGroup conveyor({14, -9});
 
@@ -136,6 +144,10 @@ void opcontrol() {
 
   base->getModel()->setBrakeMode(okapi::AbstractMotor::brakeMode::coast);
 
+  base->startOdomThread();
+
+  std::string testStr;
+
   while (true) {
     // Operator control code start here:
 
@@ -146,8 +158,11 @@ void opcontrol() {
     if (buttonUp.changedToReleased())
       scripts::runMacroTest();
 
-    if (buttonDown.changedToReleased())
-      penvex::macro::breakMacros(0b01);
+    if (buttonDown.changedToReleased()) {
+      // penvex::macro::breakMacros(0b01);
+      testStr = base->getOdometry()->getState().str();
+      printf("%s\n", testStr.c_str());
+    }
 
     if (buttonLeft.changedToReleased())
       scripts::runMacroTest2();

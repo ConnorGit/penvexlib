@@ -5,7 +5,7 @@
 This is a temp readme just used to keep track of the todo when initially building this library:
 
 Macros
-Odom
+Odom [x, ]
 Mesh
 PP
 MP
@@ -16,9 +16,9 @@ Basic logger
 
 - [x] Make initial template
 - [x] Get basic bot control
-- [ ] Test bot control
+- [x] Test bot control
 - [ ] Rec Auton
-- [ ] Macros
+- [x] Macros
 - [ ] Pure Pursuit
 - [ ] Mesh drive
 - [ ] Dist PID
