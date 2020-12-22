@@ -22,6 +22,7 @@ Basic logger
 - [ ] Pure Pursuit
 - [ ] Mesh drive
 - [ ] Dist PID
+- [ ] Odom Sensor fusion
 
 ### LINKS:
 
