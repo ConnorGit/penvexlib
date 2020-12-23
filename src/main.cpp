@@ -3,22 +3,9 @@
 // Defs:
 const unsigned int penvex::macro::numberOfSubsystems = 2;
 
-using namespace okapi::literals;
-okapi::ChassisScales baseScales({2.75_in, 14.3125_in, 5.1875_in, 4.58333333_in},
-                                600);
-std::shared_ptr<okapi::OdomChassisController> base =
-    okapi::ChassisControllerBuilder()
-        .withMotors({-20, -19}, {18, 17})
-        .withSensors(okapi::IntegratedEncoder{19, true},
-                     okapi::IntegratedEncoder{17, false},
-                     okapi::ADIEncoder{'G', 'H', true})
-        .withDimensions(okapi::AbstractMotor::gearset::red, baseScales)
-        .withGains({0.001, 0.0, 0.0}, // Distance controller gains
-                   {0.0, 0.0, 0.0},   // Turn controller gains
-                   {0.0, 0.0, 0.0}    // Angle controller gains
-                   )
-        .withOdometry(baseScales)
-        .buildOdometry();
+std::shared_ptr<okapi::OdomChassisController> base;
+
+std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -30,7 +17,39 @@ void initialize() {
   okapi::Logger::setDefaultLogger(std::make_shared<okapi::Logger>(
       okapi::TimeUtilFactory::createDefault().getTimer(),
       "/ser/sout", // Output to the PROS terminal
-      okapi::Logger::LogLevel::warn));
+      okapi::Logger::LogLevel::info));
+
+  using namespace okapi::literals;
+  okapi::ChassisScales baseScales(
+      {2.75_in, 14.3125_in, 5.1875_in, 4.58333333_in}, 600);
+
+  okapi::ChassisScales baseScalesHack(
+      {8.25_in, 14.3125_in, 5.1875_in, 4.58333333_in}, 600);
+
+  // NOTE: Okapi didnt properly implement GearsetRatioPair into chassis
+  // ChassisControllerBuilder - I am just telling it the wheels are three times
+  // as big
+  base = okapi::ChassisControllerBuilder()
+             .withMotors({-20, -19}, {18, 17})
+             .withSensors(okapi::IntegratedEncoder{19, true},
+                          okapi::IntegratedEncoder{17, false},
+                          okapi::ADIEncoder{'G', 'H', true})
+             .withDimensions(okapi::AbstractMotor::gearset::red, baseScalesHack)
+             .withGains({0.001, 0.0, 0.0}, // Distance controller gains
+                        {0.0, 0.0, 0.0},   // Turn controller gains
+                        {0.0, 0.0, 0.0}    // Angle controller gains
+                        )
+             .withOdometry(baseScales)
+             .buildOdometry();
+
+  profileBaseController =
+      okapi::AsyncMotionProfileControllerBuilder()
+          .withOutput(base)
+          .withLimits({0.5, 1.0, 8.0})
+          .withTimeUtilFactory(okapi::ConfigurableTimeUtilFactory())
+          .notParentedToCurrentTask()
+          .withOdometry(base->getOdometry())
+          .buildMeshMpPpController();
 
   scripts::initMacroTest();
   scripts::initMacroTest2();
@@ -160,10 +179,10 @@ void opcontrol() {
       scripts::runMacroTest();
 
     if (buttonDown.changedToReleased()) {
-      penvex::macro::breakMacros(0b01);
-      // testStr = base->getOdometry()->getState().str();
-      // printf("%s\n", testStr.c_str());
-      printf("%d\n", currentlyUsedMacroSubsystems);
+      // penvex::macro::breakMacros(0b01);
+      testStr = base->getOdometry()->getState().str();
+      printf("%s\n", testStr.c_str());
+      // printf("%d\n", currentlyUsedMacroSubsystems);
     }
 
     if (buttonLeft.changedToReleased())
@@ -181,6 +200,7 @@ void opcontrol() {
           fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh) {
         penvex::macro::breakMacros(BASE);
         base->stop();
+        profileBaseController->flipDisable(true);
       }
     } else {
       (std::dynamic_pointer_cast<okapi::SkidSteerModel>(base->getModel()))

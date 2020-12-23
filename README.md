@@ -21,7 +21,7 @@ Basic logger
 - [x] Macros
 - [ ] Pure Pursuit
 - [ ] Mesh drive
-- [ ] Dist PID
+- [x] Dist PID
 - [ ] Odom Sensor fusion
 
 ### LINKS:

@@ -21,7 +21,11 @@ const unsigned int used_subsystems = 0b10;
  * The macro function to run.
  */
 void macroTest2(void *) {
-  base->moveDistance(24_in);
+
+  profileBaseController->generatePath(
+      {{0_ft, 0_ft, 0_deg}, {12_in, 0_in, 0_deg}}, "A");
+  profileBaseController->setTarget("A");
+  profileBaseController->waitUntilSettled();
 
   // Must have this line at the end of the macro
   endMacro(used_subsystems);

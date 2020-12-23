@@ -45,7 +45,7 @@
 #include "defs.hpp"
 #include "scripts.hpp"
 
-#include "penvexlib/macros.hpp"
+#include "penvexlib/api.hpp"
 
 /**
  * If you find doing pros::Motor() to be tedious and you'd prefer just to do
