@@ -7,8 +7,8 @@ This is a temp readme just used to keep track of the todo when initially buildin
 Macros
 Odom [x, ]
 Mesh
-PP
-MP
+PP [x, , ]
+MP [ , ]
 Rec - good
 Basic logger
 

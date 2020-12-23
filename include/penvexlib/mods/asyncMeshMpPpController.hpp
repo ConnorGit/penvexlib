@@ -284,14 +284,15 @@ protected:
       std::unique_ptr<TrajectoryCandidate, void (*)(TrajectoryCandidate *)>;
   using SegmentPtr = std::unique_ptr<Segment, void (*)(void *)>;
 
-  struct TrajectoryPair {
+  struct TrajectoryTripple {
     SegmentPtr left;
     SegmentPtr right;
+    SegmentPtr base;
     int length;
   };
 
   std::shared_ptr<Logger> logger;
-  std::map<std::string, TrajectoryPair> paths{};
+  std::map<std::string, TrajectoryTripple> paths{};
   PathfinderLimits limits;
   std::shared_ptr<ChassisModel> model;
   ChassisScales scales;
@@ -315,7 +316,7 @@ protected:
   /**
    * Follow the supplied path. Must follow the disabled lifecycle.
    */
-  virtual void executeSinglePath(const TrajectoryPair &path,
+  virtual void executeSinglePath(const TrajectoryTripple &path,
                                  std::unique_ptr<AbstractRate> rate);
 
   /**
@@ -341,9 +342,9 @@ protected:
                                   const std::string &filename);
 
   void internalStorePath(FILE *leftPathFile, FILE *rightPathFile,
-                         const std::string &ipathId);
+                         FILE *basePathFile, const std::string &ipathId);
   void internalLoadPath(FILE *leftPathFile, FILE *rightPathFile,
-                        const std::string &ipathId);
+                        FILE *basePathFile, const std::string &ipathId);
 
   /**
    * Reads the length of the path in a thread-safe manner.
@@ -351,7 +352,7 @@ protected:
    * @param path The path to read from.
    * @return The length of the path.
    */
-  int getPathLength(const TrajectoryPair &path);
+  int getPathLength(const TrajectoryTripple &path);
 };
 } // namespace okapi
 

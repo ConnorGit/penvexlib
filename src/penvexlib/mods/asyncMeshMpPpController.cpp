@@ -126,8 +126,9 @@ void AsyncMeshMpPpController::generatePath(
   // Free the old path before overwriting it
   forceRemovePath(ipathId);
 
-  paths.emplace(ipathId, TrajectoryPair{std::move(leftTrajectory),
-                                        std::move(rightTrajectory), length});
+  paths.emplace(ipathId, TrajectoryTripple{std::move(leftTrajectory),
+                                           std::move(rightTrajectory),
+                                           std::move(trajectory), length});
 
   LOG_INFO("AsyncMeshMpPpController: Completely done generating path " +
            ipathId);
@@ -249,7 +250,7 @@ void AsyncMeshMpPpController::loop() {
 }
 
 void AsyncMeshMpPpController::executeSinglePath(
-    const TrajectoryPair &path, std::unique_ptr<AbstractRate> rate) {
+    const TrajectoryTripple &path, std::unique_ptr<AbstractRate> rate) {
   const int reversed = direction.load(std::memory_order_acquire);
   const bool followMirrored = mirrored.load(std::memory_order_acquire);
   const int pathLength = getPathLength(path);
@@ -287,7 +288,7 @@ void AsyncMeshMpPpController::executeSinglePath(
   }
 }
 
-int AsyncMeshMpPpController::getPathLength(const TrajectoryPair &path) {
+int AsyncMeshMpPpController::getPathLength(const TrajectoryTripple &path) {
   std::scoped_lock lock(currentPathMutex);
   return path.length;
 }
@@ -386,62 +387,71 @@ void AsyncMeshMpPpController::storePath(const std::string &idirectory,
                                         const std::string &ipathId) {
   std::string leftFilePath = makeFilePath(idirectory, ipathId + ".left.csv");
   std::string rightFilePath = makeFilePath(idirectory, ipathId + ".right.csv");
+  std::string baseFilePath = makeFilePath(idirectory, ipathId + ".base.csv");
   FILE *leftPathFile = fopen(leftFilePath.c_str(), "w");
   FILE *rightPathFile = fopen(rightFilePath.c_str(), "w");
+  FILE *basePathFile = fopen(baseFilePath.c_str(), "w");
 
   // Make sure we can open the file successfully
-  if (leftPathFile == NULL) {
-    LOG_WARN("AsyncMeshMpPpController: Couldn't open file " + leftFilePath +
+  if (leftPathFile == NULL || rightPathFile == NULL || basePathFile == NULL) {
+    LOG_WARN("AsyncMeshMpPpController: Couldn't open either file " +
+             leftFilePath + ", " + rightFilePath + ", or " + baseFilePath +
              " for writing");
+    if (leftPathFile != NULL) {
+      fclose(leftPathFile);
+    }
     if (rightPathFile != NULL) {
       fclose(rightPathFile);
     }
-    return;
-  }
-  if (rightPathFile == NULL) {
-    LOG_WARN("AsyncMeshMpPpController: Couldn't open file " + rightFilePath +
-             " for writing");
-    fclose(leftPathFile);
+    if (basePathFile != NULL) {
+      fclose(basePathFile);
+    }
     return;
   }
 
-  internalStorePath(leftPathFile, rightPathFile, ipathId);
+  internalStorePath(leftPathFile, rightPathFile, basePathFile, ipathId);
 
   fclose(leftPathFile);
   fclose(rightPathFile);
+  fclose(basePathFile);
 }
 
 void AsyncMeshMpPpController::loadPath(const std::string &idirectory,
                                        const std::string &ipathId) {
   std::string leftFilePath = makeFilePath(idirectory, ipathId + ".left.csv");
   std::string rightFilePath = makeFilePath(idirectory, ipathId + ".right.csv");
+  std::string baseFilePath = makeFilePath(idirectory, ipathId + ".base.csv");
   FILE *leftPathFile = fopen(leftFilePath.c_str(), "r");
   FILE *rightPathFile = fopen(rightFilePath.c_str(), "r");
+  FILE *basePathFile = fopen(baseFilePath.c_str(), "r");
 
   // Make sure we can open the file successfully
-  if (leftPathFile == NULL) {
-    LOG_WARN("AsyncMeshMpPpController: Couldn't open file " + leftFilePath +
+  if (leftPathFile == NULL || rightPathFile == NULL || basePathFile == NULL) {
+    LOG_WARN("AsyncMeshMpPpController: Couldn't open either file " +
+             leftFilePath + ", " + rightFilePath + ", or " + baseFilePath +
              " for reading");
+    if (leftPathFile != NULL) {
+      fclose(leftPathFile);
+    }
     if (rightPathFile != NULL) {
       fclose(rightPathFile);
     }
-    return;
-  }
-  if (rightPathFile == NULL) {
-    LOG_WARN("AsyncMeshMpPpController: Couldn't open file " + rightFilePath +
-             " for reading");
-    fclose(leftPathFile);
+    if (basePathFile != NULL) {
+      fclose(basePathFile);
+    }
     return;
   }
 
-  internalLoadPath(leftPathFile, rightPathFile, ipathId);
+  internalLoadPath(leftPathFile, rightPathFile, basePathFile, ipathId);
 
   fclose(leftPathFile);
   fclose(rightPathFile);
+  fclose(basePathFile);
 }
 
 void AsyncMeshMpPpController::internalStorePath(FILE *leftPathFile,
                                                 FILE *rightPathFile,
+                                                FILE *basePathFile,
                                                 const std::string &ipathId) {
   auto pathData = this->paths.find(ipathId);
 
@@ -457,12 +467,17 @@ void AsyncMeshMpPpController::internalStorePath(FILE *leftPathFile,
     // Serialize paths
     pathfinder_serialize_csv(leftPathFile, pathData->second.left.get(), len);
     pathfinder_serialize_csv(rightPathFile, pathData->second.right.get(), len);
+    pathfinder_serialize_csv(basePathFile, pathData->second.base.get(), len);
   }
 }
 
 void AsyncMeshMpPpController::internalLoadPath(FILE *leftPathFile,
                                                FILE *rightPathFile,
+                                               FILE *basePathFile,
                                                const std::string &ipathId) {
+  // TODO: Speed up loading paths from memory either here or create an optional
+  // faster version which only loads v and x,y and donst cound lines as slowle
+
   // Count lines in file, remove one for headers
   int count = 0;
   for (int c = getc(leftPathFile); c != EOF; c = getc(leftPathFile)) {
@@ -476,14 +491,17 @@ void AsyncMeshMpPpController::internalLoadPath(FILE *leftPathFile,
   // Allocate memory
   SegmentPtr leftTrajectory((Segment *)malloc(sizeof(Segment) * count), free);
   SegmentPtr rightTrajectory((Segment *)malloc(sizeof(Segment) * count), free);
+  SegmentPtr baseTrajectory((Segment *)malloc(sizeof(Segment) * count), free);
 
   pathfinder_deserialize_csv(leftPathFile, leftTrajectory.get());
   pathfinder_deserialize_csv(rightPathFile, rightTrajectory.get());
+  pathfinder_deserialize_csv(basePathFile, baseTrajectory.get());
 
   // Remove the old path if it exists
   forceRemovePath(ipathId);
-  paths.emplace(ipathId, TrajectoryPair{std::move(leftTrajectory),
-                                        std::move(rightTrajectory), count});
+  paths.emplace(ipathId, TrajectoryTripple{std::move(leftTrajectory),
+                                           std::move(rightTrajectory),
+                                           std::move(baseTrajectory), count});
 }
 
 std::string AsyncMeshMpPpController::makeFilePath(const std::string &directory,
