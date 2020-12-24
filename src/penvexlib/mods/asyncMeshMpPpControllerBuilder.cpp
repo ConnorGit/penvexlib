@@ -179,9 +179,9 @@ AsyncMotionProfileControllerBuilder::buildMeshMpPpController() {
     throw std::runtime_error(msg);
   }
 
-  // TODO: ADD Odom to builder
   auto out = std::make_shared<AsyncMeshMpPpController>(
-      timeUtilFactory.create(), limits, model, scales, pair, controllerLogger);
+      timeUtilFactory.create(), limits, model, scales, pair, odometry,
+      controllerLogger);
   out->startThread();
 
   if (isParentedToCurrentTask && NOT_INITIALIZE_TASK &&

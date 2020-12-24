@@ -15,9 +15,10 @@ AsyncMeshMpPpController::AsyncMeshMpPpController(
     const TimeUtil &itimeUtil, const PathfinderLimits &ilimits,
     const std::shared_ptr<ChassisModel> &imodel, const ChassisScales &iscales,
     const AbstractMotor::GearsetRatioPair &ipair,
+    const std::shared_ptr<Odometry> &iodometry,
     const std::shared_ptr<Logger> &ilogger)
     : logger(ilogger), limits(ilimits), model(imodel), scales(iscales),
-      pair(ipair), timeUtil(itimeUtil) {
+      pair(ipair), odom(iodometry), timeUtil(itimeUtil) {
   if (ipair.ratio == 0) {
     std::string msg("AsyncMeshMpPpController: The gear ratio cannot be "
                     "zero! Check if you are "
@@ -232,11 +233,6 @@ void AsyncMeshMpPpController::loop() {
 
         executeSinglePath(path->second, timeUtil.getRate());
 
-        // Stop the chassis after the path because:
-        // 1. We only support an exit velocity of zero
-        // 2. Because of (1), we should make sure the system is stopped
-        model->stop();
-
         LOG_INFO_S("AsyncMeshMpPpController: Done moving");
       }
 
@@ -255,37 +251,118 @@ void AsyncMeshMpPpController::executeSinglePath(
   const bool followMirrored = mirrored.load(std::memory_order_acquire);
   const int pathLength = getPathLength(path);
 
-  for (int i = 0; i < pathLength && !isDisabled(); ++i) {
-    // This mutex is used to combat an edge case of an edge case
-    // if a running path is asked to be removed at the moment this loop is
-    // executing
-    std::scoped_lock lock(currentPathMutex);
+  int i = 0;
+  while (!isDisabled()) {
+    if (i >= pathLength)
+      break;
 
-    const auto segDT = path.left.get()[i].dt * second;
-    const auto leftRPM =
-        convertLinearToRotational(path.left.get()[i].velocity * mps)
-            .convert(rpm);
-    const auto rightRPM =
-        convertLinearToRotational(path.right.get()[i].velocity * mps)
-            .convert(rpm);
-
-    const double rightSpeed =
-        rightRPM / toUnderlyingType(pair.internalGearset) * reversed;
-    const double leftSpeed =
-        leftRPM / toUnderlyingType(pair.internalGearset) * reversed;
-    if (followMirrored) {
-      model->left(rightSpeed);
-      model->right(leftSpeed);
-    } else {
-      model->left(leftSpeed);
-      model->right(rightSpeed);
-    }
-
-    // Unlock before the delay to be nice to other tasks
-    currentPathMutex.unlock();
-
-    rate->delayUntil(segDT);
+    stepMotonProfile(i, path, rate, reversed, followMirrored, pathLength);
   }
+}
+
+void AsyncMeshMpPpController::stepMotonProfile(
+    int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+    const int reversed, const bool followMirrored, const int pathLength) {
+  // This mutex is used to combat an edge case of an edge case
+  // if a running path is asked to be removed at the moment this loop is
+  // executing
+  std::scoped_lock lock(currentPathMutex);
+
+  const auto segDT = path.left.get()[i].dt * second;
+  const auto leftRPM =
+      convertLinearToRotational(path.left.get()[i].velocity * mps).convert(rpm);
+  const auto rightRPM =
+      convertLinearToRotational(path.right.get()[i].velocity * mps)
+          .convert(rpm);
+
+  const double rightSpeed =
+      rightRPM / toUnderlyingType(pair.internalGearset) * reversed;
+  const double leftSpeed =
+      leftRPM / toUnderlyingType(pair.internalGearset) * reversed;
+  if (followMirrored) {
+    model->left(rightSpeed);
+    model->right(leftSpeed);
+  } else {
+    model->left(leftSpeed);
+    model->right(rightSpeed);
+  }
+
+  // Unlock before the delay to be nice to other tasks
+  currentPathMutex.unlock();
+
+  rate->delayUntil(segDT);
+  i++;
+}
+
+void AsyncMeshMpPpController::stepPurePursuit(
+    int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+    const int reversed, const bool followMirrored, const int pathLength) {
+
+  OdomState currentPos = odom->getState();
+
+  // This mutex is used to combat an edge case of an edge case
+  // if a running path is asked to be removed at the moment this loop is
+  // executing
+  std::scoped_lock lock(currentPathMutex);
+
+  QLength lookAhead = 10_in;
+
+  /**
+   * Changes i to the index of the nearest point sequentialy ahead of the
+   * current index which is more than lookAhead distance away from the current
+   * point.
+   * If it reaches the end of the path it will set the goal to the last point.
+   */
+  QLength x = path.base.get()[i].x * meter;
+  QLength y = path.base.get()[i].y * meter;
+  while ((i != pathLength) &&
+         (OdomMath::computeDistanceToPoint({x, y}, currentPos) <= lookAhead)) {
+    i++;
+    x = path.base.get()[i].x * meter;
+    y = path.base.get()[i].y * meter;
+  }
+
+  const QLength lengthToPoint =
+      OdomMath::computeDistanceToPoint({x, y}, currentPos);
+
+  const QLength deltaTransX = ((y - currentPos.y) * cos(currentPos.theta)) +
+                              ((x - currentPos.x) * sin(currentPos.theta));
+
+  if (deltaTransX != 0.0_m && lengthToPoint != 0.0_m) {
+    const QLength radius =
+        (lengthToPoint * lengthToPoint) / (2.0 * deltaTransX);
+
+    // this is the wrong way to do it - split them up
+    const auto LratioToR = (radius + ((scales.wheelTrack) / 2.0)) /
+                           (radius - ((scales.wheelTrack) / 2.0));
+
+  } else
+    const const auto LratioToR = 1.0;
+
+  const auto segDT = path.left.get()[i].dt * second;
+  const auto leftRPM =
+      convertLinearToRotational(path.left.get()[i].velocity * mps).convert(rpm);
+  const auto rightRPM =
+      convertLinearToRotational(path.right.get()[i].velocity * mps)
+          .convert(rpm);
+
+  const double rightSpeed =
+      rightRPM / toUnderlyingType(pair.internalGearset) * reversed;
+  const double leftSpeed =
+      leftRPM / toUnderlyingType(pair.internalGearset) * reversed;
+  if (followMirrored) {
+    model->left(rightSpeed);
+    model->right(leftSpeed);
+  } else {
+    model->left(leftSpeed);
+    model->right(rightSpeed);
+  }
+
+  // Unlock before the delay to be nice to other tasks
+  currentPathMutex.unlock();
+
+  rate->delayUntil(segDT);
+  i++;
 }
 
 int AsyncMeshMpPpController::getPathLength(const TrajectoryTripple &path) {
@@ -363,7 +440,6 @@ void AsyncMeshMpPpController::flipDisable(const bool iisDisabled) {
   LOG_INFO("AsyncMeshMpPpController: flipDisable " +
            std::to_string(iisDisabled));
   disabled.store(iisDisabled, std::memory_order_release);
-  // loop() will stop the chassis when executeSinglePath() is done
   // the default implementation of executeSinglePath() breaks when disabled
 }
 

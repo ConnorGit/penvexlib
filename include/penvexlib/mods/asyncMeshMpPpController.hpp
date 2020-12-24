@@ -10,6 +10,9 @@
 #include "okapi/api/chassis/model/skidSteerModel.hpp"
 #include "okapi/api/control/async/asyncPositionController.hpp"
 #include "okapi/api/control/util/pathfinderUtil.hpp"
+#include "okapi/api/odometry/odomMath.hpp"
+#include "okapi/api/odometry/odometry.hpp"
+#include "okapi/api/odometry/point.hpp"
 #include "okapi/api/units/QAngularSpeed.hpp"
 #include "okapi/api/units/QSpeed.hpp"
 #include "okapi/api/util/logging.hpp"
@@ -40,6 +43,7 @@ public:
       const TimeUtil &itimeUtil, const PathfinderLimits &ilimits,
       const std::shared_ptr<ChassisModel> &imodel, const ChassisScales &iscales,
       const AbstractMotor::GearsetRatioPair &ipair,
+      const std::shared_ptr<Odometry> &iodometry,
       const std::shared_ptr<Logger> &ilogger = Logger::getDefaultLogger());
 
   AsyncMeshMpPpController(AsyncMeshMpPpController &&other) = delete;
@@ -297,6 +301,7 @@ protected:
   std::shared_ptr<ChassisModel> model;
   ChassisScales scales;
   AbstractMotor::GearsetRatioPair pair;
+  std::shared_ptr<Odometry> odom;
   TimeUtil timeUtil;
 
   // This must be locked when accessing the current path
@@ -318,6 +323,23 @@ protected:
    */
   virtual void executeSinglePath(const TrajectoryTripple &path,
                                  std::unique_ptr<AbstractRate> rate);
+
+  /**
+   * Drive the path step with motion profining specified by i then dalay for
+   * that path step's dt and increment i;
+   */
+  void stepMotonProfile(int &i, const TrajectoryTripple &path,
+                        std::unique_ptr<AbstractRate> &rate, const int reversed,
+                        const bool followMirrored, const int pathLength);
+
+  /**
+   * Set motors to velocity trajectory intended to interceept a point lookahed
+   * distance avay on the path, dealys pure purduit dt and increments i to the
+   * goal point
+   */
+  void stepPurePursuit(int &i, const TrajectoryTripple &path,
+                       std::unique_ptr<AbstractRate> &rate, const int reversed,
+                       const bool followMirrored, const int pathLength);
 
   /**
    * Converts linear chassis speed to rotational motor speed.
