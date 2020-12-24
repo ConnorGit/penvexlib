@@ -29,6 +29,11 @@ class AsyncMeshMpPpController
     : public AsyncPositionController<std::string, PathfinderPoint> {
 public:
   /**
+   * Indicates the control methods to be used in controller.
+   */
+  enum controlMethods { Mp = 0b01, Pp = 0b10, MpPp = 0b11 };
+
+  /**
    * An Async Controller which generates and follows 2D motion profiles. Throws
    * a `std::invalid_argument` exception if the gear ratio is zero.
    *
@@ -120,10 +125,25 @@ public:
    *
    * @param ipathId A unique identifier for the path, previously passed to
    * `generatePath()`.
+   * @param imethod the motion control method used to follow the path, motion
+   * profiling or pure pursuit
+   */
+  void setTarget(std::string ipathId, controlMethods imethod);
+
+  /**
+   * Executes a path with the given ID. If there is no path matching the ID, the
+   * method will return. Any targets set while a path is being followed will be
+   * ignored.
+   *
+   * @param ipathId A unique identifier for the path, previously passed to
+   * `generatePath()`.
+   * @param imethod the motion control method used to follow the path, motion
+   * profiling or pure pursuit
    * @param ibackwards Whether to follow the profile backwards.
    * @param imirrored Whether to follow the profile mirrored.
    */
-  void setTarget(std::string ipathId, bool ibackwards, bool imirrored = false);
+  void setTarget(std::string ipathId, controlMethods imethod, bool ibackwards,
+                 bool imirrored = false);
 
   /**
    * Writes the value of the controller output. This method might be
@@ -159,11 +179,14 @@ public:
    * path which was generated.
    *
    * @param iwaypoints The waypoints to hit on the path.
+   * @param imethod the motion control method used to follow the path, motion
+   * profiling or pure pursuit
    * @param ibackwards Whether to follow the profile backwards.
    * @param imirrored Whether to follow the profile mirrored.
    */
   void moveTo(std::initializer_list<PathfinderPoint> iwaypoints,
-              bool ibackwards = false, bool imirrored = false);
+              controlMethods imethod, bool ibackwards = false,
+              bool imirrored = false);
 
   /**
    * Generates a new path from the position (typically the current position) to
@@ -172,12 +195,14 @@ public:
    *
    * @param iwaypoints The waypoints to hit on the path.
    * @param ilimits The limits to use for this path only.
+   * @param imethod the motion control method used to follow the path, motion
+   * profiling or pure pursuit
    * @param ibackwards Whether to follow the profile backwards.
    * @param imirrored Whether to follow the profile mirrored.
    */
   void moveTo(std::initializer_list<PathfinderPoint> iwaypoints,
-              const PathfinderLimits &ilimits, bool ibackwards = false,
-              bool imirrored = false);
+              const PathfinderLimits &ilimits, controlMethods imethod,
+              bool ibackwards = false, bool imirrored = false);
 
   /**
    * Returns the last error of the controller. Does not update when disabled.
@@ -312,11 +337,26 @@ protected:
   std::atomic_int direction{1};
   std::atomic_bool mirrored{false};
   std::atomic_bool disabled{false};
+  std::atomic<controlMethods> method{Mp};
   std::atomic_bool dtorCalled{false};
   CrossplatformThread *task{nullptr};
 
   static void trampoline(void *context);
   void loop();
+
+  /**
+   * Used to point to the step functions.
+   */
+  typedef void (AsyncMeshMpPpController::*controllerStepFunction)(
+      int &, const TrajectoryTripple &, std::unique_ptr<AbstractRate> &,
+      const int, const bool, const int, const bool, const double);
+
+  /**
+   * Used to point to the manager functions.
+   */
+  typedef int (AsyncMeshMpPpController::*managerFunction)(
+      int &, const TrajectoryTripple &, std::unique_ptr<AbstractRate> &,
+      const int, const bool, const int, bool &, double &);
 
   /**
    * Follow the supplied path. Must follow the disabled lifecycle.
@@ -330,7 +370,8 @@ protected:
    */
   void stepMotonProfile(int &i, const TrajectoryTripple &path,
                         std::unique_ptr<AbstractRate> &rate, const int reversed,
-                        const bool followMirrored, const int pathLength);
+                        const bool followMirrored, const int pathLength,
+                        const bool targetAPoint, const double pursuitSpeed);
 
   /**
    * Set motors to velocity trajectory intended to interceept a point lookahed
@@ -339,7 +380,47 @@ protected:
    */
   void stepPurePursuit(int &i, const TrajectoryTripple &path,
                        std::unique_ptr<AbstractRate> &rate, const int reversed,
-                       const bool followMirrored, const int pathLength);
+                       const bool followMirrored, const int pathLength,
+                       const bool targetAPoint, const double pursuitSpeed);
+
+  /**
+   * Maniges Pure Pursuit - returns 1 at the end of the path.
+   */
+  int managePurePursuit(int &i, const TrajectoryTripple &path,
+                        std::unique_ptr<AbstractRate> &rate, const int reversed,
+                        const bool followMirrored, const int pathLength,
+                        bool &targetAPoint, double &pursuitSpeed);
+
+  /**
+   * Maniges Motion Profiling - returns 1 at the end of the path.
+   */
+  int manageMotionProfiling(int &i, const TrajectoryTripple &path,
+                            std::unique_ptr<AbstractRate> &rate,
+                            const int reversed, const bool followMirrored,
+                            const int pathLength, bool &targetAPoint,
+                            double &pursuitSpeed);
+
+  /**
+   * Maniges Motion Profiling - returns 1 at the end of the path.
+   * Switches the step function and mainger function to pure pursuit when
+   * devating from the path returning 3.
+   */
+  int manageMotionProfilingMesh(int &i, const TrajectoryTripple &path,
+                                std::unique_ptr<AbstractRate> &rate,
+                                const int reversed, const bool followMirrored,
+                                const int pathLength, bool &targetAPoint,
+                                double &pursuitSpeed);
+
+  /**
+   * Maniges Pure Pursuit - returns 1 at the end of the path.
+   * Switches the step function and mainger function to motion profiling pursuit
+   * when weturning to the path - returns 2.
+   */
+  int managePurePursuitMesh(int &i, const TrajectoryTripple &path,
+                            std::unique_ptr<AbstractRate> &rate,
+                            const int reversed, const bool followMirrored,
+                            const int pathLength, bool &targetAPoint,
+                            double &pursuitSpeed);
 
   /**
    * Converts linear chassis speed to rotational motor speed.
