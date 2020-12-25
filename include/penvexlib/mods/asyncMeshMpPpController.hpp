@@ -356,7 +356,7 @@ protected:
    */
   typedef int (AsyncMeshMpPpController::*managerFunction)(
       int &, const TrajectoryTripple &, std::unique_ptr<AbstractRate> &,
-      const int, const bool, const int, bool &, double &);
+      const int, const bool, const int, bool &, double &, int &);
 
   /**
    * Follow the supplied path. Must follow the disabled lifecycle.
@@ -389,7 +389,7 @@ protected:
   int managePurePursuit(int &i, const TrajectoryTripple &path,
                         std::unique_ptr<AbstractRate> &rate, const int reversed,
                         const bool followMirrored, const int pathLength,
-                        bool &targetAPoint, double &pursuitSpeed);
+                        bool &targetAPoint, double &pursuitSpeed, int &t);
 
   /**
    * Maniges Motion Profiling - returns 1 at the end of the path.
@@ -398,7 +398,7 @@ protected:
                             std::unique_ptr<AbstractRate> &rate,
                             const int reversed, const bool followMirrored,
                             const int pathLength, bool &targetAPoint,
-                            double &pursuitSpeed);
+                            double &pursuitSpeed, int &t);
 
   /**
    * Maniges Motion Profiling - returns 1 at the end of the path.
@@ -409,7 +409,7 @@ protected:
                                 std::unique_ptr<AbstractRate> &rate,
                                 const int reversed, const bool followMirrored,
                                 const int pathLength, bool &targetAPoint,
-                                double &pursuitSpeed);
+                                double &pursuitSpeed, int &t);
 
   /**
    * Maniges Pure Pursuit - returns 1 at the end of the path.
@@ -420,7 +420,7 @@ protected:
                             std::unique_ptr<AbstractRate> &rate,
                             const int reversed, const bool followMirrored,
                             const int pathLength, bool &targetAPoint,
-                            double &pursuitSpeed);
+                            double &pursuitSpeed, int &t);
 
   /**
    * Converts linear chassis speed to rotational motor speed.

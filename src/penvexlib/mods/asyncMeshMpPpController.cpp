@@ -268,7 +268,7 @@ void AsyncMeshMpPpController::executeSinglePath(
   managerFunction currentManagerFunction;
 
   bool targetAPoint = false;
-  double pursuitSpeed = 150 / 200;
+  double pursuitSpeed = 0.5; // TODO: magic number
 
   switch (controllerType) {
   case Mp:
@@ -286,13 +286,13 @@ void AsyncMeshMpPpController::executeSinglePath(
     break;
   }
 
-  int i = 0;
+  int i = 0, t = 0;
   int transitionStatus = 0;
   while (!isDisabled()) {
 
-    transitionStatus =
-        (this->*currentManagerFunction)(i, path, rate, reversed, followMirrored,
-                                        pathLength, targetAPoint, pursuitSpeed);
+    transitionStatus = (this->*currentManagerFunction)(
+        i, path, rate, reversed, followMirrored, pathLength, targetAPoint,
+        pursuitSpeed, t);
 
     if (transitionStatus == 1)
       break;
@@ -350,7 +350,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
     const int reversed, const bool followMirrored, const int pathLength,
     const bool targetAPoint, const double pursuitSpeed) {
 
-  const double mirror = (followMirrored ? -1.0 : 1.0);
+  const double mirror = (followMirrored ? 1.0 : -1.0);
 
   OdomState currentPos = odom->getState();
 
@@ -359,7 +359,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
   // executing
   std::scoped_lock lock(currentPathMutex);
 
-  QLength lookAhead = 10_in;
+  QLength lookAhead = 7_in; // TODO: magic number
 
   /**
    * Changes i to the index of the nearest point sequentialy ahead of the
@@ -367,21 +367,19 @@ void AsyncMeshMpPpController::stepPurePursuit(
    * point.
    * If it reaches the end of the path it will set the goal to the last point.
    */
-  QLength x = path.base.get()[i].x * meter * mirror;
-  QLength y = path.base.get()[i].y * meter * reversed;
-  while ((!targetAPoint) && (i < pathLength) &&
+  QLength x = path.base.get()[i].x * meter * reversed;
+  QLength y = path.base.get()[i].y * meter * mirror;
+  while ((!targetAPoint) && (i < pathLength - 1) &&
          (OdomMath::computeDistanceToPoint({x, y}, currentPos) <= lookAhead)) {
     i++;
-    x = path.base.get()[i].x * meter * mirror;
-    y = path.base.get()[i].y * meter * reversed;
+    x = path.base.get()[i].x * meter * reversed;
+    y = path.base.get()[i].y * meter * mirror;
   }
 
   const QLength lengthToPoint =
       OdomMath::computeDistanceToPoint({x, y}, currentPos);
 
-  // NOTE: I am not confident abbout this math - test first withought motor
-  // power
-  const QLength deltaTransX = (((y - currentPos.y) * cos(currentPos.theta)) +
+  const QLength deltaTransX = (((y - currentPos.y) * cos(currentPos.theta)) -
                                ((x - currentPos.x) * sin(currentPos.theta))) *
                               reversed;
 
@@ -410,7 +408,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
     rightSpeed = pursuitSpeed * reversed;
   }
 
-  if (followMirrored) {
+  if (reversed == -1) {
     model->left(rightSpeed);
     model->right(leftSpeed);
   } else {
@@ -427,29 +425,47 @@ void AsyncMeshMpPpController::stepPurePursuit(
 int AsyncMeshMpPpController::manageMotionProfiling(
     int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
     const int reversed, const bool followMirrored, const int pathLength,
-    bool &targetAPoint, double &pursuitSpeed) {
+    bool &targetAPoint, double &pursuitSpeed, int &t) {
   return (int)(i >= pathLength);
 }
 
 int AsyncMeshMpPpController::manageMotionProfilingMesh(
     int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
     const int reversed, const bool followMirrored, const int pathLength,
-    bool &targetAPoint, double &pursuitSpeed) {
+    bool &targetAPoint, double &pursuitSpeed, int &t) {
   return (int)(i >= pathLength);
 }
 
 int AsyncMeshMpPpController::managePurePursuit(
     int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
     const int reversed, const bool followMirrored, const int pathLength,
-    bool &targetAPoint, double &pursuitSpeed) {
-  return (int)(i >= pathLength);
+    bool &targetAPoint, double &pursuitSpeed, int &t) {
+  if (i == pathLength - 1) {
+    targetAPoint = true;
+    t++;
+    OdomState currentPos = odom->getState();
+    QLength x = path.base.get()[i].x * meter * reversed;
+    QLength y = path.base.get()[i].y * meter * (followMirrored ? 1.0 : -1.0);
+    QLength dist = (OdomMath::computeDistanceToPoint({x, y}, currentPos));
+    pursuitSpeed = 0.5 * (dist / 7_in).getValue(); // TODO: magic number
+    if (pursuitSpeed > 0.5) {
+      pursuitSpeed = 0.5;
+    }                                             // TODO: magic number
+    return (int)((dist <= 0.7_in) || (t >= 120)); // TODO: magic number2
+  }
+  if (targetAPoint) {
+    targetAPoint = false;
+    pursuitSpeed = 0.5; // TODO: magic number
+    t = 0;
+  }
+  return 0;
 }
 
 int AsyncMeshMpPpController::managePurePursuitMesh(
     int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
     const int reversed, const bool followMirrored, const int pathLength,
-    bool &targetAPoint, double &pursuitSpeed) {
-  return (int)(i >= pathLength);
+    bool &targetAPoint, double &pursuitSpeed, int &t) {
+  return (int)(i >= pathLength - 1);
 }
 
 int AsyncMeshMpPpController::getPathLength(const TrajectoryTripple &path) {
