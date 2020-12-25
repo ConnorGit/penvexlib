@@ -25,6 +25,13 @@ extern "C" {
 }
 
 namespace okapi {
+struct PurePursuitConstants {
+  double pursuitSpeed; // Percent motor speed one motor will run at durring
+                       // pursuit (0.0,1.0].
+  QLength lookAhead; // The distance the controller looks ahead when driving to
+                     // a point on the path.
+};
+
 class AsyncMeshMpPpController
     : public AsyncPositionController<std::string, PathfinderPoint> {
 public:
@@ -46,6 +53,7 @@ public:
    */
   AsyncMeshMpPpController(
       const TimeUtil &itimeUtil, const PathfinderLimits &ilimits,
+      PurePursuitConstants *iPpConstants,
       const std::shared_ptr<ChassisModel> &imodel, const ChassisScales &iscales,
       const AbstractMotor::GearsetRatioPair &ipair,
       const std::shared_ptr<Odometry> &iodometry,
@@ -268,9 +276,16 @@ public:
   void setMaxVelocity(std::int32_t imaxVelocity) override;
 
   /**
-   * Starts the internal thread. This should not be called by normal users. This
-   * method is called by the `AsyncMeshMpPpControllerBuilder` when making a
-   * new instance of this class.
+   * Sets the current pure pursuit limits in a threadsafe way.
+   *
+   * @param iPpConstants the new constants to be set.
+   */
+  void setPurePursuitConstants(const PurePursuitConstants &iPpConstants);
+
+  /**
+   * Starts the internal thread. This should not be called by normal users.
+   * This method is called by the `AsyncMeshMpPpControllerBuilder` when
+   * making a new instance of this class.
    */
   void startThread();
 
@@ -323,6 +338,7 @@ protected:
   std::shared_ptr<Logger> logger;
   std::map<std::string, TrajectoryTripple> paths{};
   PathfinderLimits limits;
+  PurePursuitConstants PpConstants;
   std::shared_ptr<ChassisModel> model;
   ChassisScales scales;
   AbstractMotor::GearsetRatioPair pair;
@@ -331,6 +347,8 @@ protected:
 
   // This must be locked when accessing the current path
   CrossplatformMutex currentPathMutex;
+  // This must be locked when accessing the pure pursuit constants
+  CrossplatformMutex purePursuitConstantsMutex;
 
   std::string currentPath{""};
   std::atomic_bool isRunning{false};
@@ -345,18 +363,34 @@ protected:
   void loop();
 
   /**
+   * Every paramiter needed to run a step and a manager of a loop.
+   * Look jaba I can explain.
+   */
+  struct controlLoopParams {
+    int i = 0;
+    int reversed = 1;
+    bool followMirrored = false;
+    int pathLength = 0;
+    bool targetAPoint = false;
+    double pursuitSpeed = 0.0;
+    QLength lookAhead = 1.0_in;
+    double leftSpeed = 0.0;
+    double rightSpeed = 0.0;
+  };
+
+  /**
    * Used to point to the step functions.
    */
   typedef void (AsyncMeshMpPpController::*controllerStepFunction)(
-      int &, const TrajectoryTripple &, std::unique_ptr<AbstractRate> &,
-      const int, const bool, const int, const bool, const double);
+      const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+      controlLoopParams &params);
 
   /**
    * Used to point to the manager functions.
    */
   typedef int (AsyncMeshMpPpController::*managerFunction)(
-      int &, const TrajectoryTripple &, std::unique_ptr<AbstractRate> &,
-      const int, const bool, const int, bool &, double &, int &);
+      const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+      controlLoopParams &params, int &);
 
   /**
    * Follow the supplied path. Must follow the disabled lifecycle.
@@ -368,59 +402,50 @@ protected:
    * Drive the path step with motion profining specified by i then dalay for
    * that path step's dt and increment i;
    */
-  void stepMotonProfile(int &i, const TrajectoryTripple &path,
-                        std::unique_ptr<AbstractRate> &rate, const int reversed,
-                        const bool followMirrored, const int pathLength,
-                        const bool targetAPoint, const double pursuitSpeed);
+  void stepMotonProfile(const TrajectoryTripple &path,
+                        std::unique_ptr<AbstractRate> &rate,
+                        controlLoopParams &params);
 
   /**
    * Set motors to velocity trajectory intended to interceept a point lookahed
    * distance avay on the path, dealys pure purduit dt and increments i to the
    * goal point
    */
-  void stepPurePursuit(int &i, const TrajectoryTripple &path,
-                       std::unique_ptr<AbstractRate> &rate, const int reversed,
-                       const bool followMirrored, const int pathLength,
-                       const bool targetAPoint, const double pursuitSpeed);
+  void stepPurePursuit(const TrajectoryTripple &path,
+                       std::unique_ptr<AbstractRate> &rate,
+                       controlLoopParams &params);
 
   /**
    * Maniges Pure Pursuit - returns 1 at the end of the path.
    */
-  int managePurePursuit(int &i, const TrajectoryTripple &path,
-                        std::unique_ptr<AbstractRate> &rate, const int reversed,
-                        const bool followMirrored, const int pathLength,
-                        bool &targetAPoint, double &pursuitSpeed, int &t);
+  int managePurePursuit(const TrajectoryTripple &path,
+                        std::unique_ptr<AbstractRate> &rate,
+                        controlLoopParams &params, int &t);
 
   /**
    * Maniges Motion Profiling - returns 1 at the end of the path.
    */
-  int manageMotionProfiling(int &i, const TrajectoryTripple &path,
+  int manageMotionProfiling(const TrajectoryTripple &path,
                             std::unique_ptr<AbstractRate> &rate,
-                            const int reversed, const bool followMirrored,
-                            const int pathLength, bool &targetAPoint,
-                            double &pursuitSpeed, int &t);
+                            controlLoopParams &params, int &t);
 
   /**
    * Maniges Motion Profiling - returns 1 at the end of the path.
    * Switches the step function and mainger function to pure pursuit when
    * devating from the path returning 3.
    */
-  int manageMotionProfilingMesh(int &i, const TrajectoryTripple &path,
+  int manageMotionProfilingMesh(const TrajectoryTripple &path,
                                 std::unique_ptr<AbstractRate> &rate,
-                                const int reversed, const bool followMirrored,
-                                const int pathLength, bool &targetAPoint,
-                                double &pursuitSpeed, int &t);
+                                controlLoopParams &params, int &t);
 
   /**
    * Maniges Pure Pursuit - returns 1 at the end of the path.
    * Switches the step function and mainger function to motion profiling pursuit
    * when weturning to the path - returns 2.
    */
-  int managePurePursuitMesh(int &i, const TrajectoryTripple &path,
+  int managePurePursuitMesh(const TrajectoryTripple &path,
                             std::unique_ptr<AbstractRate> &rate,
-                            const int reversed, const bool followMirrored,
-                            const int pathLength, bool &targetAPoint,
-                            double &pursuitSpeed, int &t);
+                            controlLoopParams &params, int &t);
 
   /**
    * Converts linear chassis speed to rotational motor speed.

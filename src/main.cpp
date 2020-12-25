@@ -42,13 +42,15 @@ void initialize() {
              .withOdometry(baseScales)
              .buildOdometry();
 
+  okapi::PurePursuitConstants constants{0.75, 8.0_in};
+
+  // NOTE: This might cause init to run out of stack space
   profileBaseController =
       okapi::AsyncMotionProfileControllerBuilder()
           .withOutput(base)
           .withLimits({0.5, 1.0, 8.0})
           .withTimeUtilFactory(okapi::ConfigurableTimeUtilFactory())
-          .notParentedToCurrentTask()
-          .withOdometry(base->getOdometry())
+          .withOdometry(base->getOdometry(), &constants)
           .buildMeshMpPpController();
 
   scripts::initMacroTest();

@@ -66,9 +66,11 @@ AsyncMotionProfileControllerBuilder::withOutput(
 
 AsyncMotionProfileControllerBuilder &
 AsyncMotionProfileControllerBuilder::withOdometry(
-    const std::shared_ptr<Odometry> &iodometry) {
+    const std::shared_ptr<Odometry> &iodometry,
+    PurePursuitConstants *iPpConstants) {
   hasOdometry = true;
   odometry = iodometry;
+  pursuitConstants = iPpConstants;
   return *this;
 }
 
@@ -79,6 +81,14 @@ AsyncMotionProfileControllerBuilder::withLimits(
   limits = ilimits;
   return *this;
 }
+
+// AsyncMotionProfileControllerBuilder &
+// AsyncMotionProfileControllerBuilder::withPpConstants(
+//     const PurePursuitConstants *iPpConstants) {
+//   // hasPpConstants = true;
+//   // PpConstants = iPpConstants;
+//   return *this;
+// }
 
 AsyncMotionProfileControllerBuilder &
 AsyncMotionProfileControllerBuilder::withTimeUtilFactory(
@@ -179,9 +189,16 @@ AsyncMotionProfileControllerBuilder::buildMeshMpPpController() {
     throw std::runtime_error(msg);
   }
 
+  // if (!hasPpConstants) {
+  //   std::string msg("AsyncMotionProfileControllerBuilder: No Pure Pursuit "
+  //                   "constants given.");
+  //   LOG_ERROR(msg);
+  //   throw std::runtime_error(msg);
+  // }
+
   auto out = std::make_shared<AsyncMeshMpPpController>(
-      timeUtilFactory.create(), limits, model, scales, pair, odometry,
-      controllerLogger);
+      timeUtilFactory.create(), limits, pursuitConstants, model, scales, pair,
+      odometry, controllerLogger);
   out->startThread();
 
   if (isParentedToCurrentTask && NOT_INITIALIZE_TASK &&

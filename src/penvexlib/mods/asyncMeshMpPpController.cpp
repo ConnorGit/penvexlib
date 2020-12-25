@@ -13,12 +13,14 @@
 namespace okapi {
 AsyncMeshMpPpController::AsyncMeshMpPpController(
     const TimeUtil &itimeUtil, const PathfinderLimits &ilimits,
+    PurePursuitConstants *iPpConstants,
     const std::shared_ptr<ChassisModel> &imodel, const ChassisScales &iscales,
     const AbstractMotor::GearsetRatioPair &ipair,
     const std::shared_ptr<Odometry> &iodometry,
     const std::shared_ptr<Logger> &ilogger)
-    : logger(ilogger), limits(ilimits), model(imodel), scales(iscales),
-      pair(ipair), odom(iodometry), timeUtil(itimeUtil) {
+    : logger(ilogger), limits(ilimits), PpConstants((*iPpConstants)),
+      model(imodel), scales(iscales), pair(ipair), odom(iodometry),
+      timeUtil(itimeUtil) {
   if (ipair.ratio == 0) {
     std::string msg("AsyncMeshMpPpController: The gear ratio cannot be "
                     "zero! Check if you are "
@@ -255,20 +257,25 @@ void AsyncMeshMpPpController::loop() {
 
 void AsyncMeshMpPpController::executeSinglePath(
     const TrajectoryTripple &path, std::unique_ptr<AbstractRate> rate) {
-  const controlMethods controllerType = method.load(std::memory_order_acquire);
-  const int reversed = direction.load(std::memory_order_acquire);
-  const bool followMirrored = mirrored.load(std::memory_order_acquire);
-  const int pathLength = getPathLength(path);
 
-  // This is garbage, but I would like to think that it is at lear cconpitent
+  const controlMethods controllerType = method.load(std::memory_order_acquire);
+
+  // This is garbage, but I would like to think that it is at least competent
   // garbage
+
+  controlLoopParams params;
+  params.reversed = direction.load(std::memory_order_acquire);
+  params.followMirrored = mirrored.load(std::memory_order_acquire);
+  params.pathLength = getPathLength(path);
+  std::scoped_lock lock(purePursuitConstantsMutex);
+  params.pursuitSpeed = PpConstants.pursuitSpeed;
+  params.lookAhead = PpConstants.lookAhead;
+  purePursuitConstantsMutex.unlock();
+  params.targetAPoint = false;
 
   controllerStepFunction currentStepFunction;
 
   managerFunction currentManagerFunction;
-
-  bool targetAPoint = false;
-  double pursuitSpeed = 0.5; // TODO: magic number
 
   switch (controllerType) {
   case Mp:
@@ -286,13 +293,12 @@ void AsyncMeshMpPpController::executeSinglePath(
     break;
   }
 
-  int i = 0, t = 0;
+  params.i = 0;
+  int t = 0;
   int transitionStatus = 0;
   while (!isDisabled()) {
 
-    transitionStatus = (this->*currentManagerFunction)(
-        i, path, rate, reversed, followMirrored, pathLength, targetAPoint,
-        pursuitSpeed, t);
+    transitionStatus = (this->*currentManagerFunction)(path, rate, params, t);
 
     if (transitionStatus == 1)
       break;
@@ -305,52 +311,50 @@ void AsyncMeshMpPpController::executeSinglePath(
           &AsyncMeshMpPpController::manageMotionProfilingMesh;
     }
 
-    (this->*currentStepFunction)(i, path, rate, reversed, followMirrored,
-                                 pathLength, targetAPoint, pursuitSpeed);
+    (this->*currentStepFunction)(path, rate, params);
   }
 }
 
 void AsyncMeshMpPpController::stepMotonProfile(
-    int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
-    const int reversed, const bool followMirrored, const int pathLength,
-    const bool targetAPoint, const double pursuitSpeed) {
+    const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+    controlLoopParams &params) {
   // This mutex is used to combat an edge case of an edge case
   // if a running path is asked to be removed at the moment this loop is
   // executing
   std::scoped_lock lock(currentPathMutex);
 
-  const auto segDT = path.left.get()[i].dt * second;
+  const auto segDT = path.left.get()[params.i].dt * second;
   const auto leftRPM =
-      convertLinearToRotational(path.left.get()[i].velocity * mps).convert(rpm);
+      convertLinearToRotational(path.left.get()[params.i].velocity * mps)
+          .convert(rpm);
   const auto rightRPM =
-      convertLinearToRotational(path.right.get()[i].velocity * mps)
+      convertLinearToRotational(path.right.get()[params.i].velocity * mps)
           .convert(rpm);
 
-  const double rightSpeed =
-      rightRPM / toUnderlyingType(pair.internalGearset) * reversed;
-  const double leftSpeed =
-      leftRPM / toUnderlyingType(pair.internalGearset) * reversed;
-  if (followMirrored) {
-    model->left(rightSpeed);
-    model->right(leftSpeed);
+  params.rightSpeed =
+      rightRPM / toUnderlyingType(pair.internalGearset) * params.reversed;
+  params.leftSpeed =
+      leftRPM / toUnderlyingType(pair.internalGearset) * params.reversed;
+  if (params.followMirrored) {
+    model->left(params.rightSpeed);
+    model->right(params.leftSpeed);
   } else {
-    model->left(leftSpeed);
-    model->right(rightSpeed);
+    model->left(params.leftSpeed);
+    model->right(params.rightSpeed);
   }
 
   // Unlock before the delay to be nice to other tasks
   currentPathMutex.unlock();
 
   rate->delayUntil(segDT);
-  i++;
+  params.i++;
 }
 
 void AsyncMeshMpPpController::stepPurePursuit(
-    int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
-    const int reversed, const bool followMirrored, const int pathLength,
-    const bool targetAPoint, const double pursuitSpeed) {
+    const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+    controlLoopParams &params) {
 
-  const double mirror = (followMirrored ? 1.0 : -1.0);
+  const double mirror = (params.followMirrored ? 1.0 : -1.0);
 
   OdomState currentPos = odom->getState();
 
@@ -359,21 +363,20 @@ void AsyncMeshMpPpController::stepPurePursuit(
   // executing
   std::scoped_lock lock(currentPathMutex);
 
-  QLength lookAhead = 7_in; // TODO: magic number
-
   /**
    * Changes i to the index of the nearest point sequentialy ahead of the
-   * current index which is more than lookAhead distance away from the current
-   * point.
-   * If it reaches the end of the path it will set the goal to the last point.
+   * current index which is more than lookAhead distance away from the
+   * current point. If it reaches the end of the path it will set the goal
+   * to the last point.
    */
-  QLength x = path.base.get()[i].x * meter * reversed;
-  QLength y = path.base.get()[i].y * meter * mirror;
-  while ((!targetAPoint) && (i < pathLength - 1) &&
-         (OdomMath::computeDistanceToPoint({x, y}, currentPos) <= lookAhead)) {
-    i++;
-    x = path.base.get()[i].x * meter * reversed;
-    y = path.base.get()[i].y * meter * mirror;
+  QLength x = path.base.get()[params.i].x * meter * params.reversed;
+  QLength y = path.base.get()[params.i].y * meter * mirror;
+  while ((!params.targetAPoint) && (params.i < params.pathLength - 1) &&
+         (OdomMath::computeDistanceToPoint({x, y}, currentPos) <=
+          params.lookAhead)) {
+    params.i++;
+    x = path.base.get()[params.i].x * meter * params.reversed;
+    y = path.base.get()[params.i].y * meter * mirror;
   }
 
   const QLength lengthToPoint =
@@ -381,7 +384,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
 
   const QLength deltaTransX = (((y - currentPos.y) * cos(currentPos.theta)) -
                                ((x - currentPos.x) * sin(currentPos.theta))) *
-                              reversed;
+                              params.reversed;
 
   QLength leftSaclar = 1.0_m;
   QLength rightSaclar = 1.0_m;
@@ -395,25 +398,23 @@ void AsyncMeshMpPpController::stepPurePursuit(
     rightSaclar = (radius - ((scales.wheelTrack) / 2.0));
   }
 
-  double rightSpeed;
-  double leftSpeed;
-
   // They cant both be 0
   if (abs(leftSaclar) >= abs(rightSaclar)) {
-    leftSpeed = pursuitSpeed * reversed;
-    rightSpeed =
-        pursuitSpeed * (rightSaclar / leftSaclar).getValue() * reversed;
+    params.leftSpeed = params.pursuitSpeed * params.reversed;
+    params.rightSpeed = params.pursuitSpeed *
+                        (rightSaclar / leftSaclar).getValue() * params.reversed;
   } else {
-    leftSpeed = pursuitSpeed * (leftSaclar / rightSaclar).getValue() * reversed;
-    rightSpeed = pursuitSpeed * reversed;
+    params.leftSpeed = params.pursuitSpeed *
+                       (leftSaclar / rightSaclar).getValue() * params.reversed;
+    params.rightSpeed = params.pursuitSpeed * params.reversed;
   }
 
-  if (reversed == -1) {
-    model->left(rightSpeed);
-    model->right(leftSpeed);
+  if (params.reversed == -1) {
+    model->left(params.rightSpeed);
+    model->right(params.leftSpeed);
   } else {
-    model->left(leftSpeed);
-    model->right(rightSpeed);
+    model->left(params.leftSpeed);
+    model->right(params.rightSpeed);
   }
 
   // Unlock before the delay to be nice to other tasks
@@ -423,49 +424,52 @@ void AsyncMeshMpPpController::stepPurePursuit(
 }
 
 int AsyncMeshMpPpController::manageMotionProfiling(
-    int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
-    const int reversed, const bool followMirrored, const int pathLength,
-    bool &targetAPoint, double &pursuitSpeed, int &t) {
-  return (int)(i >= pathLength);
+    const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+    controlLoopParams &params, int &t) {
+  return (int)(params.i >= params.pathLength);
 }
 
 int AsyncMeshMpPpController::manageMotionProfilingMesh(
-    int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
-    const int reversed, const bool followMirrored, const int pathLength,
-    bool &targetAPoint, double &pursuitSpeed, int &t) {
-  return (int)(i >= pathLength);
+    const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+    controlLoopParams &params, int &t) {
+  return (int)(params.i >= params.pathLength);
 }
 
 int AsyncMeshMpPpController::managePurePursuit(
-    int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
-    const int reversed, const bool followMirrored, const int pathLength,
-    bool &targetAPoint, double &pursuitSpeed, int &t) {
-  if (i == pathLength - 1) {
-    targetAPoint = true;
+    const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+    controlLoopParams &params, int &t) {
+  if (params.i == params.pathLength - 1) {
+    params.targetAPoint = true;
     t++;
     OdomState currentPos = odom->getState();
-    QLength x = path.base.get()[i].x * meter * reversed;
-    QLength y = path.base.get()[i].y * meter * (followMirrored ? 1.0 : -1.0);
+    QLength x = path.base.get()[params.i].x * meter * params.reversed;
+    QLength y = path.base.get()[params.i].y * meter *
+                (params.followMirrored ? 1.0 : -1.0);
     QLength dist = (OdomMath::computeDistanceToPoint({x, y}, currentPos));
-    pursuitSpeed = 0.5 * (dist / 7_in).getValue(); // TODO: magic number
-    if (pursuitSpeed > 0.5) {
-      pursuitSpeed = 0.5;
-    }                                             // TODO: magic number
-    return (int)((dist <= 0.7_in) || (t >= 120)); // TODO: magic number2
+
+    std::scoped_lock lock(purePursuitConstantsMutex);
+    params.pursuitSpeed =
+        PpConstants.pursuitSpeed * (dist / params.lookAhead).getValue();
+    if (params.pursuitSpeed > PpConstants.pursuitSpeed) {
+      params.pursuitSpeed = PpConstants.pursuitSpeed;
+    }
+    purePursuitConstantsMutex.unlock();
+    return (int)((dist <= 0.7_in) || (t >= 150)); // TODO: magic number2
   }
-  if (targetAPoint) {
-    targetAPoint = false;
-    pursuitSpeed = 0.5; // TODO: magic number
+  if (params.targetAPoint) {
+    params.targetAPoint = false;
+    std::scoped_lock lock(purePursuitConstantsMutex);
+    params.pursuitSpeed = PpConstants.pursuitSpeed;
+    purePursuitConstantsMutex.unlock();
     t = 0;
   }
   return 0;
 }
 
 int AsyncMeshMpPpController::managePurePursuitMesh(
-    int &i, const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
-    const int reversed, const bool followMirrored, const int pathLength,
-    bool &targetAPoint, double &pursuitSpeed, int &t) {
-  return (int)(i >= pathLength - 1);
+    const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
+    controlLoopParams &params, int &t) {
+  return (int)(params.i >= params.pathLength - 1);
 }
 
 int AsyncMeshMpPpController::getPathLength(const TrajectoryTripple &path) {
@@ -553,6 +557,13 @@ bool AsyncMeshMpPpController::isDisabled() const {
 void AsyncMeshMpPpController::tarePosition() {}
 
 void AsyncMeshMpPpController::setMaxVelocity(std::int32_t) {}
+
+void AsyncMeshMpPpController::setPurePursuitConstants(
+    const PurePursuitConstants &iPpConstants) {
+  std::scoped_lock lock(purePursuitConstantsMutex);
+  PpConstants = iPpConstants;
+  purePursuitConstantsMutex.unlock();
+}
 
 void AsyncMeshMpPpController::startThread() {
   if (!task) {

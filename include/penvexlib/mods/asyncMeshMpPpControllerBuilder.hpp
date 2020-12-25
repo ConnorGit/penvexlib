@@ -105,10 +105,12 @@ public:
    * buildMeshMpPpController().
    *
    * @param iodometry The odometry to use.
+   * @param iPpConstants The constants.
    * @return An ongoing builder.
    */
   AsyncMotionProfileControllerBuilder &
-  withOdometry(const std::shared_ptr<Odometry> &iodometry);
+  withOdometry(const std::shared_ptr<Odometry> &iodometry,
+               PurePursuitConstants *iPpConstants);
 
   /**
    * Sets the limits.
@@ -206,6 +208,7 @@ private:
 
   bool hasOdometry{false};
   std::shared_ptr<Odometry> odometry;
+  PurePursuitConstants *pursuitConstants;
 
   bool isParentedToCurrentTask{true};
 };
