@@ -29,7 +29,11 @@ struct PurePursuitConstants {
   double pursuitSpeed; // Percent motor speed one motor will run at durring
                        // pursuit (0.0,1.0].
   QLength lookAhead; // The distance the controller looks ahead when driving to
-                     // a point on the path.
+  // a point on the path.
+  QLength breakMoPro; // The distance robot must be from the current process
+                      // pint to break mopro in mesh
+  QLength joinDist;   // The distance robot must be to end a target point loop -
+                      // ending a pp or rejoining a mp
 };
 
 class AsyncMeshMpPpController
@@ -374,6 +378,8 @@ protected:
     bool targetAPoint = false;
     double pursuitSpeed = 0.0;
     QLength lookAhead = 1.0_in;
+    QLength breakMoPro = 1.0_in;
+    QLength joinDist = 1.0_in;
     double leftSpeed = 0.0;
     double rightSpeed = 0.0;
   };

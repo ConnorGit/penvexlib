@@ -24,7 +24,7 @@ void macroTest2(void *) {
   okapi::OdomState c = base->getOdometry()->getState();
   profileBaseController->generatePath(
       {{c.x, c.y, c.theta}, {c.x + 36_in, c.y + 36_in, c.theta}}, "A");
-  profileBaseController->setTarget("A", okapi::AsyncMeshMpPpController::Pp,
+  profileBaseController->setTarget("A", okapi::AsyncMeshMpPpController::MpPp,
                                    false, true);
   profileBaseController->waitUntilSettled();
   base->stop();

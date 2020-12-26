@@ -42,7 +42,7 @@ void initialize() {
              .withOdometry(baseScales)
              .buildOdometry();
 
-  okapi::PurePursuitConstants constants{0.75, 8.0_in};
+  okapi::PurePursuitConstants constants{0.4, 8.0_in, 5_in, 0.7_in};
 
   // NOTE: This might cause init to run out of stack space
   profileBaseController =
