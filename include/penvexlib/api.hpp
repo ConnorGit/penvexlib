@@ -14,5 +14,6 @@
 #include "penvexlib/mods/asyncMeshMpPpControllerBuilder.hpp"
 
 #include "penvexlib/macros.hpp"
+#include "penvexlib/record.hpp"
 
 #endif

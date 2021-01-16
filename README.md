@@ -7,8 +7,8 @@ This is a temp readme just used to keep track of the todo when initially buildin
 Macros
 Odom [x, ]
 Mesh
-PP [x, , ]
-MP [ , ]
+PP
+MP
 Rec - good
 Basic logger
 
@@ -19,8 +19,8 @@ Basic logger
 - [x] Test bot control
 - [ ] Rec Auton
 - [x] Macros
-- [ ] Pure Pursuit
-- [ ] Mesh drive
+- [x] Pure Pursuit
+- [x] Mesh drive
 - [x] Dist PID
 - [ ] Odom Sensor fusion
 

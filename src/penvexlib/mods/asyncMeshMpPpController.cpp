@@ -811,4 +811,17 @@ void AsyncMeshMpPpController::forceRemovePath(const std::string &ipathId) {
     removePath(ipathId);
   }
 }
+
+void AsyncMeshMpPpController::takePath(
+    std::unique_ptr<Segment, void (*)(void *)> &ileftTrajectory,
+    std::unique_ptr<Segment, void (*)(void *)> &irightTrajectory,
+    std::unique_ptr<Segment, void (*)(void *)> &ibaseTrajectory, int length,
+    const std::string &ipathId) {
+
+  // Remove the old path if it exists
+  forceRemovePath(ipathId);
+  paths.emplace(ipathId, TrajectoryTripple{std::move(ileftTrajectory),
+                                           std::move(irightTrajectory),
+                                           std::move(ibaseTrajectory), length});
+}
 } // namespace okapi

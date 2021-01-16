@@ -3,6 +3,9 @@
 // Defs:
 const unsigned int penvex::macro::numberOfSubsystems = 2;
 
+std::shared_ptr<okapi::Motor> baseFL;
+std::shared_ptr<okapi::Motor> baseFR;
+
 std::shared_ptr<okapi::OdomChassisController> base;
 
 std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
@@ -18,6 +21,9 @@ void initialize() {
       okapi::TimeUtilFactory::createDefault().getTimer(),
       "/ser/sout", // Output to the PROS terminal
       okapi::Logger::LogLevel::info));
+
+  baseFL = std::make_shared<okapi::Motor>(-19);
+  baseFR = std::make_shared<okapi::Motor>(17);
 
   using namespace okapi::literals;
   okapi::ChassisScales baseScales(
@@ -180,12 +186,12 @@ void opcontrol() {
     if (buttonUp.changedToReleased())
       scripts::runMacroTest();
 
-    if (buttonDown.changedToReleased()) {
-      // penvex::macro::breakMacros(0b01);
-      testStr = base->getOdometry()->getState().str();
-      printf("%s\n", testStr.c_str());
-      // printf("%d\n", currentlyUsedMacroSubsystems);
-    }
+    // if (buttonDown.changedToReleased()) {
+    //   // penvex::macro::breakMacros(0b01);
+    //   testStr = base->getOdometry()->getState().str();
+    //   printf("%s\n", testStr.c_str());
+    //   // printf("%d\n", currentlyUsedMacroSubsystems);
+    // }
 
     if (buttonLeft.changedToReleased())
       scripts::runMacroTest2();
@@ -221,6 +227,7 @@ void opcontrol() {
 
     // Acavate the record function
     if (RECORD_B.changedToReleased()) {
+      penvex::record::runRecordMacro();
       // startRecordingVI();
     }
 

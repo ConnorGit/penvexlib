@@ -327,6 +327,14 @@ public:
    */
   void forceRemovePath(const std::string &ipathId);
 
+  /**
+   * Adds a path that is already in memory to the list of paths and transfters wnership of the pointers.
+   */
+  void takePath(std::unique_ptr<Segment, void (*)(void *)> &ileftTrajectory,
+                std::unique_ptr<Segment, void (*)(void *)> &irightTrajectory,
+                std::unique_ptr<Segment, void (*)(void *)> &ibaseTrajectory,
+                int length, const std::string &ipathId);
+
 protected:
   using TrajectoryPtr =
       std::unique_ptr<TrajectoryCandidate, void (*)(TrajectoryCandidate *)>;

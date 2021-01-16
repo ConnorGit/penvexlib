@@ -13,6 +13,9 @@
  */
 enum macroIds : unsigned int { DEFAULT = 0b1, BASE = 0b10 };
 
+extern std::shared_ptr<okapi::Motor> baseFL;
+extern std::shared_ptr<okapi::Motor> baseFR;
+
 extern std::shared_ptr<okapi::OdomChassisController> base;
 
 extern std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
