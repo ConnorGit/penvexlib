@@ -328,7 +328,8 @@ public:
   void forceRemovePath(const std::string &ipathId);
 
   /**
-   * Adds a path that is already in memory to the list of paths and transfters wnership of the pointers.
+   * Adds a path that is already in memory to the list of paths and transfters
+   * wnership of the pointers.
    */
   void takePath(std::unique_ptr<Segment, void (*)(void *)> &ileftTrajectory,
                 std::unique_ptr<Segment, void (*)(void *)> &irightTrajectory,
@@ -385,9 +386,9 @@ protected:
     int pathLength = 0;
     bool targetAPoint = false;
     double pursuitSpeed = 0.0;
-    QLength lookAhead = 1.0_in;
-    QLength breakMoPro = 1.0_in;
-    QLength joinDist = 1.0_in;
+    double lookAheadSquare = 0.01;
+    double breakMoProSquare = 0.01;
+    double joinDistSquare = 0.01;
     double leftSpeed = 0.0;
     double rightSpeed = 0.0;
   };
@@ -468,6 +469,12 @@ protected:
    * @return motor frame speed
    */
   QAngularSpeed convertLinearToRotational(QSpeed linear) const;
+
+  /**
+   * Optomised sistance mesure, returns positive double representing meeters^2
+   */
+  double computeDistanceSquareToPoint_m(const Point &ipoint,
+                                        const OdomState &istate);
 
   std::string getPathErrorMessage(const std::vector<Waypoint> &points,
                                   const std::string &ipathId, int length);

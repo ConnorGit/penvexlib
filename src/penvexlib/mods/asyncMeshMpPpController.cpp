@@ -263,15 +263,22 @@ void AsyncMeshMpPpController::executeSinglePath(
   // This is garbage, but I would like to think that it is at least competent
   // garbage
 
+  // Optomisation todo:
+  // TODO: Fns are never used outside of this scope - make them lambda - if you
+  // do there is no need for big stuct
+
   controlLoopParams params;
   params.reversed = direction.load(std::memory_order_acquire);
   params.followMirrored = mirrored.load(std::memory_order_acquire);
   params.pathLength = getPathLength(path);
   std::scoped_lock lock(purePursuitConstantsMutex);
   params.pursuitSpeed = PpConstants.pursuitSpeed;
-  params.lookAhead = PpConstants.lookAhead;
-  params.breakMoPro = PpConstants.breakMoPro;
-  params.joinDist = PpConstants.joinDist;
+  params.lookAheadSquare = PpConstants.lookAhead.convert(meter);
+  params.lookAheadSquare *= params.lookAheadSquare;
+  params.breakMoProSquare = PpConstants.breakMoPro.convert(meter);
+  params.breakMoProSquare *= params.breakMoProSquare;
+  params.joinDistSquare = PpConstants.joinDist.convert(meter);
+  params.joinDistSquare *= params.joinDistSquare;
   purePursuitConstantsMutex.unlock();
   params.targetAPoint = false;
 
@@ -373,41 +380,42 @@ void AsyncMeshMpPpController::stepPurePursuit(
    */
   QLength x = path.base.get()[params.i].x * meter * params.reversed;
   QLength y = path.base.get()[params.i].y * meter * mirror;
+
+  double lengthToPointSquare =
+      computeDistanceSquareToPoint_m({x, y}, currentPos);
+
   while ((!params.targetAPoint) && (params.i < params.pathLength - 1) &&
-         (OdomMath::computeDistanceToPoint({x, y}, currentPos) <=
-          params.lookAhead)) {
+         (lengthToPointSquare <= params.lookAheadSquare)) {
     params.i++;
     x = path.base.get()[params.i].x * meter * params.reversed;
     y = path.base.get()[params.i].y * meter * mirror;
+    lengthToPointSquare = computeDistanceSquareToPoint_m({x, y}, currentPos);
   }
-
-  const QLength lengthToPoint =
-      OdomMath::computeDistanceToPoint({x, y}, currentPos);
 
   const QLength deltaTransX = (((y - currentPos.y) * cos(currentPos.theta)) -
                                ((x - currentPos.x) * sin(currentPos.theta))) *
                               params.reversed;
 
-  QLength leftSaclar = 1.0_m;
-  QLength rightSaclar = 1.0_m;
+  double leftSaclar = 1.0;
+  double rightSaclar = 1.0;
 
-  if (deltaTransX != 0.0_m && lengthToPoint != 0.0_m) {
-    const QLength radius =
-        (lengthToPoint * lengthToPoint) / (2.0 * deltaTransX);
+  if (deltaTransX != 0.0_m && lengthToPointSquare != 0.0) {
+    const double radius =
+        (lengthToPointSquare) / (2.0 * deltaTransX.convert(meter));
 
     // this is the wrong way to do it - split them up
-    leftSaclar = (radius + ((scales.wheelTrack) / 2.0));
-    rightSaclar = (radius - ((scales.wheelTrack) / 2.0));
+    leftSaclar = (radius + ((scales.wheelTrack.convert(meter)) / 2.0));
+    rightSaclar = (radius - ((scales.wheelTrack.convert(meter)) / 2.0));
   }
 
   // They cant both be 0
-  if (abs(leftSaclar) >= abs(rightSaclar)) {
+  if (fabs(leftSaclar) >= fabs(rightSaclar)) {
     params.leftSpeed = params.pursuitSpeed * params.reversed;
-    params.rightSpeed = params.pursuitSpeed *
-                        (rightSaclar / leftSaclar).getValue() * params.reversed;
+    params.rightSpeed =
+        params.pursuitSpeed * (rightSaclar / leftSaclar) * params.reversed;
   } else {
-    params.leftSpeed = params.pursuitSpeed *
-                       (leftSaclar / rightSaclar).getValue() * params.reversed;
+    params.leftSpeed =
+        params.pursuitSpeed * (leftSaclar / rightSaclar) * params.reversed;
     params.rightSpeed = params.pursuitSpeed * params.reversed;
   }
 
@@ -435,12 +443,13 @@ int AsyncMeshMpPpController::manageMotionProfilingMesh(
     const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
     controlLoopParams &params, int &t) {
   if (params.pathLength - params.i >= 6) {
-    OdomState currentPos = odom->getState();
-    QLength x = path.base.get()[params.i].x * meter * params.reversed;
-    QLength y = path.base.get()[params.i].y * meter *
-                (params.followMirrored ? 1.0 : -1.0);
-    QLength dist = (OdomMath::computeDistanceToPoint({x, y}, currentPos));
-    if (dist >= params.breakMoPro)
+    const OdomState currentPos = odom->getState();
+    const QLength x = path.base.get()[params.i].x * meter * params.reversed;
+    const QLength y = path.base.get()[params.i].y * meter *
+                      (params.followMirrored ? 1.0 : -1.0);
+    const double distSquare =
+        (computeDistanceSquareToPoint_m({x, y}, currentPos));
+    if (distSquare >= params.breakMoProSquare)
       return 3;
   }
   return (int)(params.i >= params.pathLength);
@@ -452,20 +461,21 @@ int AsyncMeshMpPpController::managePurePursuit(
   if (params.i == params.pathLength - 1) {
     params.targetAPoint = true;
     t++;
-    OdomState currentPos = odom->getState();
-    QLength x = path.base.get()[params.i].x * meter * params.reversed;
-    QLength y = path.base.get()[params.i].y * meter *
-                (params.followMirrored ? 1.0 : -1.0);
-    QLength dist = (OdomMath::computeDistanceToPoint({x, y}, currentPos));
+    const OdomState currentPos = odom->getState();
+    const QLength x = path.base.get()[params.i].x * meter * params.reversed;
+    const QLength y = path.base.get()[params.i].y * meter *
+                      (params.followMirrored ? 1.0 : -1.0);
+    const double distSquare =
+        (computeDistanceSquareToPoint_m({x, y}, currentPos));
 
     std::scoped_lock lock(purePursuitConstantsMutex);
     params.pursuitSpeed =
-        PpConstants.pursuitSpeed * (dist / params.lookAhead).getValue();
+        PpConstants.pursuitSpeed * (distSquare / params.lookAheadSquare);
     if (params.pursuitSpeed > PpConstants.pursuitSpeed) {
       params.pursuitSpeed = PpConstants.pursuitSpeed;
     }
     purePursuitConstantsMutex.unlock();
-    return (int)((dist <= params.joinDist) ||
+    return (int)((distSquare <= params.joinDistSquare) ||
                  (t >= 150)); // TODO: magic number2
   }
   if (params.targetAPoint) {
@@ -481,8 +491,8 @@ int AsyncMeshMpPpController::managePurePursuit(
 int AsyncMeshMpPpController::managePurePursuitMesh(
     const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
     controlLoopParams &params, int &t) {
-  double leftVelocity = path.left.get()[params.i].velocity;
-  double rightVelocity = path.right.get()[params.i].velocity;
+  const double leftVelocity = path.left.get()[params.i].velocity;
+  const double rightVelocity = path.right.get()[params.i].velocity;
   // If curvature matches or end of path
   if ((fabs((params.leftSpeed * path.right.get()[params.i].velocity) -
             (path.left.get()[params.i].velocity * params.rightSpeed)) <=
@@ -490,11 +500,12 @@ int AsyncMeshMpPpController::managePurePursuitMesh(
       (params.i == params.pathLength - 1)) {
     params.targetAPoint = true;
 
-    OdomState currentPos = odom->getState();
-    QLength x = path.base.get()[params.i].x * meter * params.reversed;
-    QLength y = path.base.get()[params.i].y * meter *
-                (params.followMirrored ? 1.0 : -1.0);
-    QLength dist = (OdomMath::computeDistanceToPoint({x, y}, currentPos));
+    const OdomState currentPos = odom->getState();
+    const QLength x = path.base.get()[params.i].x * meter * params.reversed;
+    const QLength y = path.base.get()[params.i].y * meter *
+                      (params.followMirrored ? 1.0 : -1.0);
+    const double distSquare =
+        (computeDistanceSquareToPoint_m({x, y}, currentPos));
 
     double targetSpeed;
 
@@ -512,7 +523,7 @@ int AsyncMeshMpPpController::managePurePursuitMesh(
             toUnderlyingType(pair.internalGearset) * params.reversed;
     }
 
-    double percentChange = (dist / params.lookAhead).getValue();
+    const double percentChange = (distSquare / params.lookAheadSquare);
 
     std::scoped_lock lock(purePursuitConstantsMutex);
     params.pursuitSpeed = PpConstants.pursuitSpeed * percentChange +
@@ -529,10 +540,10 @@ int AsyncMeshMpPpController::managePurePursuitMesh(
     printf("%f, %f\n", params.pursuitSpeed, targetSpeed);
 
     if (params.i == params.pathLength - 1)
-      return (int)((dist <= params.joinDist) ||
+      return (int)((distSquare <= params.joinDistSquare) ||
                    (t >= 150)); // TODO: magic number2
     else
-      return (2 * (int)(dist <= params.joinDist));
+      return (2 * (int)(distSquare <= params.joinDistSquare));
   }
   if (params.targetAPoint) {
     params.targetAPoint = false;
@@ -552,6 +563,13 @@ int AsyncMeshMpPpController::getPathLength(const TrajectoryTripple &path) {
 QAngularSpeed
 AsyncMeshMpPpController::convertLinearToRotational(QSpeed linear) const {
   return (linear * (360_deg / (scales.wheelDiameter * 1_pi))) * pair.ratio;
+}
+
+double AsyncMeshMpPpController::computeDistanceSquareToPoint_m(
+    const Point &ipoint, const OdomState &istate) {
+  const double xDiff = (ipoint.x - istate.x).convert(meter);
+  const double yDiff = (ipoint.y - istate.y).convert(meter);
+  return ((xDiff * xDiff) + (yDiff * yDiff));
 }
 
 void AsyncMeshMpPpController::trampoline(void *context) {
