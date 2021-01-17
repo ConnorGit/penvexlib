@@ -329,7 +329,7 @@ public:
 
   /**
    * Adds a path that is already in memory to the list of paths and transfters
-   * wnership of the pointers.
+   * ownership of the pointers.
    */
   void takePath(std::unique_ptr<Segment, void (*)(void *)> &ileftTrajectory,
                 std::unique_ptr<Segment, void (*)(void *)> &irightTrajectory,

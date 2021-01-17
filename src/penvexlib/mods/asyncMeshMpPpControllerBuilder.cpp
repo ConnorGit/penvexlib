@@ -8,26 +8,26 @@
 #include "penvexlib/mods/asyncMeshMpPpControllerBuilder.hpp"
 
 namespace okapi {
-AsyncMotionProfileControllerBuilder::AsyncMotionProfileControllerBuilder(
+AsyncMotionProfileControllerBuilderMod::AsyncMotionProfileControllerBuilderMod(
     const std::shared_ptr<Logger> &ilogger)
     : logger(ilogger) {}
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withOutput(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withOutput(
     const Motor &ioutput, const QLength &idiameter,
     const AbstractMotor::GearsetRatioPair &ipair) {
   return withOutput(std::make_shared<Motor>(ioutput), idiameter, ipair);
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withOutput(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withOutput(
     const MotorGroup &ioutput, const QLength &idiameter,
     const AbstractMotor::GearsetRatioPair &ipair) {
   return withOutput(std::make_shared<MotorGroup>(ioutput), idiameter, ipair);
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withOutput(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withOutput(
     const std::shared_ptr<ControllerOutput<double>> &ioutput,
     const QLength &idiameter, const AbstractMotor::GearsetRatioPair &ipair) {
   hasOutput = true;
@@ -38,22 +38,22 @@ AsyncMotionProfileControllerBuilder::withOutput(
   return *this;
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withOutput(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withOutput(
     ChassisController &icontroller) {
   return withOutput(icontroller.getModel(), icontroller.getChassisScales(),
                     icontroller.getGearsetRatioPair());
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withOutput(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withOutput(
     const std::shared_ptr<ChassisController> &icontroller) {
   return withOutput(icontroller->getModel(), icontroller->getChassisScales(),
                     icontroller->getGearsetRatioPair());
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withOutput(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withOutput(
     const std::shared_ptr<ChassisModel> &imodel, const ChassisScales &iscales,
     const AbstractMotor::GearsetRatioPair &ipair) {
   hasOutput = false;
@@ -64,8 +64,8 @@ AsyncMotionProfileControllerBuilder::withOutput(
   return *this;
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withOdometry(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withOdometry(
     const std::shared_ptr<Odometry> &iodometry,
     PurePursuitConstants *iPpConstants) {
   hasOdometry = true;
@@ -74,58 +74,57 @@ AsyncMotionProfileControllerBuilder::withOdometry(
   return *this;
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withLimits(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withLimits(
     const PathfinderLimits &ilimits) {
   hasLimits = true;
   limits = ilimits;
   return *this;
 }
 
-// AsyncMotionProfileControllerBuilder &
-// AsyncMotionProfileControllerBuilder::withPpConstants(
-//     const PurePursuitConstants *iPpConstants) {
+// AsyncMotionProfileControllerBuilderMod &
+// AsyncMotionProfileControllerBuilderMod::withPpConstants() {
 //   // hasPpConstants = true;
 //   // PpConstants = iPpConstants;
 //   return *this;
 // }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withTimeUtilFactory(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withTimeUtilFactory(
     const TimeUtilFactory &itimeUtilFactory) {
   timeUtilFactory = itimeUtilFactory;
   return *this;
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::withLogger(
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::withLogger(
     const std::shared_ptr<Logger> &ilogger) {
   controllerLogger = ilogger;
   return *this;
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::parentedToCurrentTask() {
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::parentedToCurrentTask() {
   isParentedToCurrentTask = true;
   return *this;
 }
 
-AsyncMotionProfileControllerBuilder &
-AsyncMotionProfileControllerBuilder::notParentedToCurrentTask() {
+AsyncMotionProfileControllerBuilderMod &
+AsyncMotionProfileControllerBuilderMod::notParentedToCurrentTask() {
   isParentedToCurrentTask = false;
   return *this;
 }
 
 std::shared_ptr<AsyncLinearMotionProfileController>
-AsyncMotionProfileControllerBuilder::buildLinearMotionProfileController() {
+AsyncMotionProfileControllerBuilderMod::buildLinearMotionProfileController() {
   if (!hasOutput) {
-    std::string msg("AsyncMotionProfileControllerBuilder: No output given.");
+    std::string msg("AsyncMotionProfileControllerBuilderMod: No output given.");
     LOG_ERROR(msg);
     throw std::runtime_error(msg);
   }
 
   if (!hasLimits) {
-    std::string msg("AsyncMotionProfileControllerBuilder: No limits given.");
+    std::string msg("AsyncMotionProfileControllerBuilderMod: No limits given.");
     LOG_ERROR(msg);
     throw std::runtime_error(msg);
   }
@@ -143,16 +142,44 @@ AsyncMotionProfileControllerBuilder::buildLinearMotionProfileController() {
   return out;
 }
 
-std::shared_ptr<AsyncMotionProfileController>
-AsyncMotionProfileControllerBuilder::buildMotionProfileController() {
-  if (!hasModel) {
-    std::string msg("AsyncMotionProfileControllerBuilder: No model given.");
+std::shared_ptr<AsyncLinearMotionProfileControllerMod>
+AsyncMotionProfileControllerBuilderMod::
+    buildLinearMotionProfileControllerMod() {
+  if (!hasOutput) {
+    std::string msg("AsyncMotionProfileControllerBuilderMod: No output given.");
     LOG_ERROR(msg);
     throw std::runtime_error(msg);
   }
 
   if (!hasLimits) {
-    std::string msg("AsyncMotionProfileControllerBuilder: No limits given.");
+    std::string msg("AsyncMotionProfileControllerBuilderMod: No limits given.");
+    LOG_ERROR(msg);
+    throw std::runtime_error(msg);
+  }
+
+  auto out = std::make_shared<AsyncLinearMotionProfileControllerMod>(
+      timeUtilFactory.create(), limits, output, diameter, pair,
+      controllerLogger);
+  out->startThread();
+
+  if (isParentedToCurrentTask && NOT_INITIALIZE_TASK &&
+      NOT_COMP_INITIALIZE_TASK) {
+    out->getThread()->notifyWhenDeletingRaw(pros::c::task_get_current());
+  }
+
+  return out;
+}
+
+std::shared_ptr<AsyncMotionProfileController>
+AsyncMotionProfileControllerBuilderMod::buildMotionProfileController() {
+  if (!hasModel) {
+    std::string msg("AsyncMotionProfileControllerBuilderMod: No model given.");
+    LOG_ERROR(msg);
+    throw std::runtime_error(msg);
+  }
+
+  if (!hasLimits) {
+    std::string msg("AsyncMotionProfileControllerBuilderMod: No limits given.");
     LOG_ERROR(msg);
     throw std::runtime_error(msg);
   }
@@ -170,27 +197,29 @@ AsyncMotionProfileControllerBuilder::buildMotionProfileController() {
 }
 
 std::shared_ptr<AsyncMeshMpPpController>
-AsyncMotionProfileControllerBuilder::buildMeshMpPpController() {
+AsyncMotionProfileControllerBuilderMod::buildMeshMpPpController() {
   if (!hasModel) {
-    std::string msg("AsyncMotionProfileControllerBuilder: No model given.");
+    std::string msg("AsyncMotionProfileControllerBuilderMod: No model given.");
     LOG_ERROR(msg);
     throw std::runtime_error(msg);
   }
 
   if (!hasOdometry) {
-    std::string msg("AsyncMotionProfileControllerBuilder: No odometry given.");
+    std::string msg(
+        "AsyncMotionProfileControllerBuilderMod: No odometry given.");
     LOG_ERROR(msg);
     throw std::runtime_error(msg);
   }
 
   if (!hasLimits) {
-    std::string msg("AsyncMotionProfileControllerBuilder: No limits given.");
+    std::string msg("AsyncMotionProfileControllerBuilderMod: No limits given.");
     LOG_ERROR(msg);
     throw std::runtime_error(msg);
   }
 
   // if (!hasPpConstants) {
-  //   std::string msg("AsyncMotionProfileControllerBuilder: No Pure Pursuit "
+  //   std::string msg("AsyncMotionProfileControllerBuilderMod: No Pure Pursuit
+  //   "
   //                   "constants given.");
   //   LOG_ERROR(msg);
   //   throw std::runtime_error(msg);

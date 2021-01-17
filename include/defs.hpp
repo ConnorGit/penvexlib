@@ -20,4 +20,18 @@ extern std::shared_ptr<okapi::OdomChassisController> base;
 
 extern std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
 
+extern std::shared_ptr<okapi::Motor> intakeL;
+extern std::shared_ptr<okapi::Motor> intakeR;
+extern std::shared_ptr<okapi::MotorGroup> intake;
+
+extern std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod>
+    profileIntakeController;
+
+extern std::shared_ptr<okapi::Motor> conveyorL;
+extern std::shared_ptr<okapi::Motor> conveyorR;
+extern std::shared_ptr<okapi::MotorGroup> conveyor;
+
+extern std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod>
+    profileConveyorController;
+
 #endif // _DEFS_HPP_

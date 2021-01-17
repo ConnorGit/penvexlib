@@ -21,16 +21,22 @@ const unsigned int used_subsystems = 0b10;
  * The macro function to run.
  */
 void macroTest2(void *) {
-  // okapi::OdomState c = base->getOdometry()->getState();
-  // profileBaseController->generatePath(
-  // {{c.x, c.y, c.theta}, {c.x + 36_in, c.y + 36_in, c.theta}}, "A");
   profileBaseController->setTarget(
       "testRec", okapi::AsyncMeshMpPpController::Mp, false, false);
+
+  profileIntakeController->setTarget("testRec");
+
+  profileConveyorController->setTarget("testRec");
+
   profileBaseController->waitUntilSettled();
+  profileIntakeController->waitUntilSettled();
+  profileConveyorController->waitUntilSettled();
   base->stop();
-  // profileBaseController->removePath("A");
+  intake->moveVoltage(0);
+  conveyor->moveVoltage(0);
+
   printf("done with profile\n");
-  // profileBaseController->storePath("/data/default/", "A");
+
   // Must have this line at the end of the macro
   endMacro(used_subsystems);
 }

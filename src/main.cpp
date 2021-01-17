@@ -3,12 +3,32 @@
 // Defs:
 const unsigned int penvex::macro::numberOfSubsystems = 2;
 
+// BASE:
+
 std::shared_ptr<okapi::Motor> baseFL;
 std::shared_ptr<okapi::Motor> baseFR;
 
 std::shared_ptr<okapi::OdomChassisController> base;
 
 std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
+
+// INTAKE:
+
+std::shared_ptr<okapi::Motor> intakeL;
+std::shared_ptr<okapi::Motor> intakeR;
+std::shared_ptr<okapi::MotorGroup> intake;
+
+std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod>
+    profileIntakeController;
+
+// CONVEYOR:
+
+std::shared_ptr<okapi::Motor> conveyorL;
+std::shared_ptr<okapi::Motor> conveyorR;
+std::shared_ptr<okapi::MotorGroup> conveyor;
+
+std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod>
+    profileConveyorController;
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -21,6 +41,8 @@ void initialize() {
       okapi::TimeUtilFactory::createDefault().getTimer(),
       "/ser/sout", // Output to the PROS terminal
       okapi::Logger::LogLevel::info));
+
+  // BASE init:
 
   baseFL = std::make_shared<okapi::Motor>(-19);
   baseFR = std::make_shared<okapi::Motor>(17);
@@ -52,12 +74,52 @@ void initialize() {
 
   // NOTE: This might cause init to run out of stack space
   profileBaseController =
-      okapi::AsyncMotionProfileControllerBuilder()
+      okapi::AsyncMotionProfileControllerBuilderMod()
           .withOutput(base)
           .withLimits({0.5, 1.0, 8.0})
           .withTimeUtilFactory(okapi::ConfigurableTimeUtilFactory())
           .withOdometry(base->getOdometry(), &constants)
           .buildMeshMpPpController();
+  pros::Task::delay(10);
+
+  // INTAKE init:
+
+  intakeL = std::make_shared<okapi::Motor>(10);
+  intakeR = std::make_shared<okapi::Motor>(-15);
+
+  intake = std::make_shared<okapi::MotorGroup>(
+      std::initializer_list<std::shared_ptr<okapi::AbstractMotor>>{intakeL,
+                                                                   intakeR});
+
+  profileIntakeController =
+      okapi::AsyncMotionProfileControllerBuilderMod()
+          .withOutput(intake, 3.5_in,
+                      okapi::AbstractMotor::GearsetRatioPair(
+                          okapi::AbstractMotor::gearset::green))
+          .withLimits({0.5, 1.0, 8.0})
+          .buildLinearMotionProfileControllerMod();
+  pros::Task::delay(10);
+
+  // printf("test\n");
+  // pros::Task::delay(10);
+
+  // CONVEYOR init:
+
+  conveyorL = std::make_shared<okapi::Motor>(-9);
+  conveyorL = std::make_shared<okapi::Motor>(14);
+
+  conveyor = std::make_shared<okapi::MotorGroup>(
+      std::initializer_list<std::shared_ptr<okapi::AbstractMotor>>{conveyorL,
+                                                                   conveyorL});
+
+  profileConveyorController =
+      okapi::AsyncMotionProfileControllerBuilderMod()
+          .withOutput(conveyor, 3.0_in,
+                      okapi::AbstractMotor::GearsetRatioPair(
+                          okapi::AbstractMotor::gearset::blue))
+          .withLimits({0.5, 1.0, 8.0})
+          .buildLinearMotionProfileControllerMod();
+  pros::Task::delay(10);
 
   scripts::initMacroTest();
   scripts::initMacroTest2();
@@ -134,16 +196,13 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
+
   // okapi::ChassisScales baseScales(
   //     {(5570 / 2.05105), 8.63636363637, 0.1317625, (3200 / 1.9558)}, 1800);
-
-  okapi::MotorGroup intake({-15, 10});
 
   okapi::IntegratedEncoder testL{19, true};
   okapi::IntegratedEncoder testR{17, false};
   okapi::ADIEncoder testM{'G', 'H', true};
-
-  okapi::MotorGroup conveyor({14, -9});
 
   okapi::Controller master(okapi::ControllerId::master);
 
@@ -216,11 +275,11 @@ void opcontrol() {
     } ////----MACRO----
 
     /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
-    intake.moveVoltage(12000 *
-                       (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
+    intake->moveVoltage(12000 *
+                        (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
 
     /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
-    conveyor.moveVoltage(
+    conveyor->moveVoltage(
         12000 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
 
     //////////////////////////////////////////////MISC///////////////////////////////////////////////////

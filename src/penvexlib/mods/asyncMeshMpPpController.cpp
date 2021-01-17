@@ -354,7 +354,7 @@ void AsyncMeshMpPpController::stepMotonProfile(
 
   // Unlock before the delay to be nice to other tasks
   currentPathMutex.unlock();
-  printf("Mp\n");
+  // printf("Mp\n");
   rate->delayUntil(segDT);
   params.i++;
 }
@@ -429,7 +429,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
 
   // Unlock before the delay to be nice to other tasks
   currentPathMutex.unlock();
-  printf("Pp\n");
+  // printf("Pp\n");
   rate->delayUntil(10_ms);
 }
 
@@ -537,7 +537,7 @@ int AsyncMeshMpPpController::managePurePursuitMesh(
     }
     purePursuitConstantsMutex.unlock();
 
-    printf("%f, %f\n", params.pursuitSpeed, targetSpeed);
+    // printf("%f, %f\n", params.pursuitSpeed, targetSpeed);
 
     if (params.i == params.pathLength - 1)
       return (int)((distSquare <= params.joinDistSquare) ||

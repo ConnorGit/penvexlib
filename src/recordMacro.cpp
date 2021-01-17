@@ -16,7 +16,7 @@ namespace penvex::record {
 const int RECORD_TIME = 5000;  // Period of time of one recording
 const int MSEC_PER_FRAME = 10; // the time between frimes in msec
 const int NUMBER_OF_FRAMES = (int)(RECORD_TIME / MSEC_PER_FRAME);
-const int BYTES_RECORDED_PER_FRAME = 32; // 6 * 8;
+const int BYTES_RECORDED_PER_FRAME = 48; // 6 * 8;
 const int RECORDED_DATA_SIZE = NUMBER_OF_FRAMES * BYTES_RECORDED_PER_FRAME / 4;
 const std::string pathId = "testRec"; // TODO: add system for rec names
 
@@ -35,8 +35,8 @@ void recordLoop(void *) {
     double baseY[NUMBER_OF_FRAMES];
     double baseLV[NUMBER_OF_FRAMES];
     double baseRV[NUMBER_OF_FRAMES];
-    // double intakeV[NUMBER_OF_FRAMES];
-    // double conveyorV[NUMBER_OF_FRAMES];
+    double intakeV[NUMBER_OF_FRAMES];
+    double conveyorV[NUMBER_OF_FRAMES];
 
     okapi::Rate timer;
 
@@ -46,8 +46,8 @@ void recordLoop(void *) {
       baseY[i] = currentPos.y.getValue();
       baseLV[i] = baseFL->getActualVelocity();
       baseRV[i] = baseFR->getActualVelocity();
-      // intakeV[i] = ;
-      // conveyorV[i] = ;
+      intakeV[i] = intake->getActualVelocity();
+      conveyorV[i] = conveyor->getActualVelocity();
       timer.delayUntil(MSEC_PER_FRAME);
     }
     printf("Finished recording.\n");
@@ -62,10 +62,16 @@ void recordLoop(void *) {
         (Segment *)malloc(bufferSize), free);
     std::unique_ptr<Segment, void (*)(void *)> baseTrajectory(
         (Segment *)malloc(bufferSize), free);
+    std::unique_ptr<Segment, void (*)(void *)> intakeTrajectory(
+        (Segment *)malloc(bufferSize), free);
+    std::unique_ptr<Segment, void (*)(void *)> conveyorTrajectory(
+        (Segment *)malloc(bufferSize), free);
 
     for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
-      baseLV[i] /= 91.1409838751; // (PI*wheelDiam(m)*gearRatio/60sec))^-1
-      baseRV[i] /= 91.1409838751;
+      baseLV[i] *= 0.01097201234; // (PI*wheelDiam(m)*gearRatio/60sec))
+      baseRV[i] *= 0.01097201234;
+      intakeV[i] *= 0.00465479311;
+      conveyorV[i] *= 0.00398982267;
       Segment baseLSeg = {((double)MSEC_PER_FRAME / 1000.0),
                           0.0,
                           0.0,
@@ -88,10 +94,33 @@ void recordLoop(void *) {
           ((double)MSEC_PER_FRAME / 1000.0), baseX[i], baseY[i], 0.0,
           (baseRV[i] + baseLV[i]) / 2.0,     0.0,      0.0,      0.0};
       (baseTrajectory.get())[i] = baseSeg;
+      Segment intakeSeg = {((double)MSEC_PER_FRAME / 1000.0),
+                           0.0,
+                           0.0,
+                           0.0,
+                           intakeV[i],
+                           0.0,
+                           0.0,
+                           0.0};
+      (intakeTrajectory.get())[i] = intakeSeg;
+      Segment conveyorSeg = {((double)MSEC_PER_FRAME / 1000.0),
+                             0.0,
+                             0.0,
+                             0.0,
+                             conveyorV[i],
+                             0.0,
+                             0.0,
+                             0.0};
+      (conveyorTrajectory.get())[i] = conveyorSeg;
     }
 
     profileBaseController->takePath(leftTrajectory, rightTrajectory,
                                     baseTrajectory, NUMBER_OF_FRAMES, pathId);
+    profileIntakeController->takePath(intakeTrajectory, NUMBER_OF_FRAMES,
+                                      pathId);
+    profileConveyorController->takePath(conveyorTrajectory, NUMBER_OF_FRAMES,
+                                        pathId);
+
     profileBaseController->storePath("/data/recordings/", pathId);
     printf("Saved recording.\n");
 

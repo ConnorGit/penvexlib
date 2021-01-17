@@ -9,7 +9,8 @@
 
 #include "okapi/impl/util/configurableTimeUtilFactory.hpp"
 
-// NOTE: comment out the async MoProBuilder incluse in okapi/api.hpp
+// NOTE: comment out the async MoProBuilder include in okapi/api.hpp
+#include "penvexlib/mods/asyncLinearMotionProfileControllerMod.hpp"
 #include "penvexlib/mods/asyncMeshMpPpController.hpp"
 #include "penvexlib/mods/asyncMeshMpPpControllerBuilder.hpp"
 

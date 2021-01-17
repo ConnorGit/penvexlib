@@ -15,10 +15,11 @@
 #include "okapi/impl/device/motor/motorGroup.hpp"
 #include "okapi/impl/util/timeUtilFactory.hpp"
 
+#include "penvexlib/mods//asyncLinearMotionProfileControllerMod.hpp"
 #include "penvexlib/mods/asyncMeshMpPpController.hpp"
 
 namespace okapi {
-class AsyncMotionProfileControllerBuilder {
+class AsyncMotionProfileControllerBuilderMod {
 public:
   /**
    * A builder that creates async motion profile controllers. Use this to build
@@ -26,7 +27,7 @@ public:
    *
    * @param ilogger The logger this instance will log to.
    */
-  explicit AsyncMotionProfileControllerBuilder(
+  explicit AsyncMotionProfileControllerBuilderMod(
       const std::shared_ptr<Logger> &ilogger = Logger::getDefaultLogger());
 
   /**
@@ -38,7 +39,7 @@ public:
    * @param ipair The gearset.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withOutput(const Motor &ioutput, const QLength &idiameter,
              const AbstractMotor::GearsetRatioPair &ipair);
 
@@ -51,7 +52,7 @@ public:
    * @param ipair The gearset.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withOutput(const MotorGroup &ioutput, const QLength &idiameter,
              const AbstractMotor::GearsetRatioPair &ipair);
 
@@ -64,7 +65,7 @@ public:
    * @param ipair The gearset.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withOutput(const std::shared_ptr<ControllerOutput<double>> &ioutput,
              const QLength &idiameter,
              const AbstractMotor::GearsetRatioPair &ipair);
@@ -75,7 +76,7 @@ public:
    * @param icontroller The chassis controller to use.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withOutput(ChassisController &icontroller);
 
   /**
@@ -84,7 +85,7 @@ public:
    * @param icontroller The chassis controller to use.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withOutput(const std::shared_ptr<ChassisController> &icontroller);
 
   /**
@@ -95,7 +96,7 @@ public:
    * @param ipair The gearset.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withOutput(const std::shared_ptr<ChassisModel> &imodel,
              const ChassisScales &iscales,
              const AbstractMotor::GearsetRatioPair &ipair);
@@ -108,7 +109,7 @@ public:
    * @param iPpConstants The constants.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withOdometry(const std::shared_ptr<Odometry> &iodometry,
                PurePursuitConstants *iPpConstants);
 
@@ -118,7 +119,7 @@ public:
    * @param ilimits The limits.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withLimits(const PathfinderLimits &ilimits);
 
   /**
@@ -128,7 +129,7 @@ public:
    * @param itimeUtilFactory The TimeUtilFactory.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withTimeUtilFactory(const TimeUtilFactory &itimeUtilFactory);
 
   /**
@@ -137,7 +138,7 @@ public:
    * @param ilogger The logger.
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &
+  AsyncMotionProfileControllerBuilderMod &
   withLogger(const std::shared_ptr<Logger> &ilogger);
 
   /**
@@ -151,7 +152,7 @@ public:
    *
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &parentedToCurrentTask();
+  AsyncMotionProfileControllerBuilderMod &parentedToCurrentTask();
 
   /**
    * Prevents parenting the internal tasks started by this builder to the
@@ -165,7 +166,7 @@ public:
    *
    * @return An ongoing builder.
    */
-  AsyncMotionProfileControllerBuilder &notParentedToCurrentTask();
+  AsyncMotionProfileControllerBuilderMod &notParentedToCurrentTask();
 
   /**
    * Builds the AsyncLinearMotionProfileController.
@@ -174,6 +175,14 @@ public:
    */
   std::shared_ptr<AsyncLinearMotionProfileController>
   buildLinearMotionProfileController();
+
+  /**
+   * Builds the AsyncLinearMotionProfileController.
+   *
+   * @return A fully built AsyncLinearMotionProfileController.
+   */
+  std::shared_ptr<AsyncLinearMotionProfileControllerMod>
+  buildLinearMotionProfileControllerMod();
 
   /**
    * Builds the AsyncMotionProfileController.
