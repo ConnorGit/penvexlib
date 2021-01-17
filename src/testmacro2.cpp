@@ -21,6 +21,15 @@ const unsigned int used_subsystems = 0b10;
  * The macro function to run.
  */
 void macroTest2(void *) {
+  printf("started macro\n");
+  penvex::record::loadPath(profileBaseController, "/data/recordings/",
+                           "testRec.base", "testRec");
+  penvex::record::loadPath(profileIntakeController, "/data/recordings/",
+                           "testRec.intake", "testRec");
+  penvex::record::loadPath(profileConveyorController, "/data/recordings/",
+                           "testRec.conveyor", "testRec");
+
+  printf("started driving\n");
   profileBaseController->setTarget(
       "testRec", okapi::AsyncMeshMpPpController::Mp, false, false);
 

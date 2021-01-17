@@ -54,6 +54,15 @@ void recordLoop(void *) {
 
     // POST PROCESSING:
 
+    double dt = ((double)MSEC_PER_FRAME / 1000.0);
+
+    for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
+      baseLV[i] *= 0.01097201234; // (PI*wheelDiam(m)*gearRatio/60sec))
+      baseRV[i] *= 0.01097201234;
+      intakeV[i] *= 0.00465479311;
+      conveyorV[i] *= 0.00398982267;
+    }
+
     // Allocate memory
     int bufferSize = sizeof(Segment) * NUMBER_OF_FRAMES;
     std::unique_ptr<Segment, void (*)(void *)> leftTrajectory(
@@ -68,61 +77,44 @@ void recordLoop(void *) {
         (Segment *)malloc(bufferSize), free);
 
     for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
-      baseLV[i] *= 0.01097201234; // (PI*wheelDiam(m)*gearRatio/60sec))
-      baseRV[i] *= 0.01097201234;
-      intakeV[i] *= 0.00465479311;
-      conveyorV[i] *= 0.00398982267;
-      Segment baseLSeg = {((double)MSEC_PER_FRAME / 1000.0),
-                          0.0,
-                          0.0,
-                          0.0,
-                          baseLV[i],
-                          0.0,
-                          0.0,
-                          0.0};
+      Segment baseLSeg = {dt, 0.0, 0.0, 0.0, baseLV[i], 0.0, 0.0, 0.0};
       (leftTrajectory.get())[i] = baseLSeg;
-      Segment baseRSeg = {((double)MSEC_PER_FRAME / 1000.0),
-                          0.0,
-                          0.0,
-                          0.0,
-                          baseRV[i],
-                          0.0,
-                          0.0,
-                          0.0};
+      Segment baseRSeg = {dt, 0.0, 0.0, 0.0, baseRV[i], 0.0, 0.0, 0.0};
       (rightTrajectory.get())[i] = baseRSeg;
       Segment baseSeg = {
-          ((double)MSEC_PER_FRAME / 1000.0), baseX[i], baseY[i], 0.0,
-          (baseRV[i] + baseLV[i]) / 2.0,     0.0,      0.0,      0.0};
+          dt,  baseX[i], baseY[i], 0.0, (baseRV[i] + baseLV[i]) / 2.0,
+          0.0, 0.0,      0.0};
       (baseTrajectory.get())[i] = baseSeg;
-      Segment intakeSeg = {((double)MSEC_PER_FRAME / 1000.0),
-                           0.0,
-                           0.0,
-                           0.0,
-                           intakeV[i],
-                           0.0,
-                           0.0,
-                           0.0};
+      Segment intakeSeg = {dt, 0.0, 0.0, 0.0, intakeV[i], 0.0, 0.0, 0.0};
       (intakeTrajectory.get())[i] = intakeSeg;
-      Segment conveyorSeg = {((double)MSEC_PER_FRAME / 1000.0),
-                             0.0,
-                             0.0,
-                             0.0,
-                             conveyorV[i],
-                             0.0,
-                             0.0,
-                             0.0};
+      Segment conveyorSeg = {dt, 0.0, 0.0, 0.0, conveyorV[i], 0.0, 0.0, 0.0};
       (conveyorTrajectory.get())[i] = conveyorSeg;
     }
 
     profileBaseController->takePath(leftTrajectory, rightTrajectory,
-                                    baseTrajectory, NUMBER_OF_FRAMES, pathId);
+                                    baseTrajectory, NUMBER_OF_FRAMES,
+                                    pathId + ".raw");
     profileIntakeController->takePath(intakeTrajectory, NUMBER_OF_FRAMES,
-                                      pathId);
+                                      pathId + ".raw");
     profileConveyorController->takePath(conveyorTrajectory, NUMBER_OF_FRAMES,
-                                        pathId);
+                                        pathId + ".raw");
 
-    profileBaseController->storePath("/data/recordings/", pathId);
-    printf("Saved recording.\n");
+    double dtArr[NUMBER_OF_FRAMES];
+    std::fill_n(dtArr, NUMBER_OF_FRAMES, dt);
+
+    const double *baseData[] = {dtArr, baseX, baseY, baseLV, baseRV};
+    storeDoubles(NUMBER_OF_FRAMES, 5, baseData, "/data/recordings/",
+                 pathId + ".base");
+
+    const double *intakeData[] = {dtArr, intakeV};
+    storeDoubles(NUMBER_OF_FRAMES, 2, intakeData, "/data/recordings/",
+                 pathId + ".intake");
+
+    const double *conveyerData[] = {dtArr, conveyorV};
+    storeDoubles(NUMBER_OF_FRAMES, 2, conveyerData, "/data/recordings/",
+                 pathId + ".conveyor");
+
+    printf("Finished saving.\n");
 
     breakMacros(used_subsystems);
   }
@@ -130,8 +122,8 @@ void recordLoop(void *) {
 
 /**
  * The identifacation for the macro which contains both the macro function to
- * run in its own task and a identifactaion for the subsystems running in it to
- * allow the macro to break if a subsystem is interupted.
+ * run in its own task and a identifactaion for the subsystems running in it
+ * to allow the macro to break if a subsystem is interupted.
  *
  * If restart is set to true then all dynamicaly allocated memory in the macro
  * must be cleaned by annother task.
