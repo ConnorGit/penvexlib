@@ -9,6 +9,7 @@
 #define _RECORD_HPP_
 
 #include "penvexlib/macros.hpp"
+#include "penvexlib/masterRunner.hpp"
 #include "penvexlib/mods/asyncLinearMotionProfileControllerMod.hpp"
 #include "penvexlib/mods/asyncMeshMpPpController.hpp"
 
@@ -22,6 +23,21 @@ extern penvex::macro::macroData recordMacro_data;
 extern void runRecordMacro();
 extern void initRecordMacro();
 
+/**
+ * Returns unused file name for recording based on if the master exists.
+ */
+extern std::string getNewRecID(const std::string &idirectory);
+
+/**
+ * Creates a master file used to run a recauton // BAD
+ */
+extern void createBasicMasterFile(const std::string &idirectory,
+                                  const std::string &ipathId);
+
+extern void readMasterFile(penvex::master::masterFunction **&masterFunctionList,
+                           std::string &fillDir, int &fillLen,
+                           const std::string &idirectory,
+                           const std::string &ipathId);
 /**
  * Stores a csv full of doubles beginnig with one line containing the number of
  * segments

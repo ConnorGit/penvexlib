@@ -18,7 +18,8 @@ const int MSEC_PER_FRAME = 10; // the time between frimes in msec
 const int NUMBER_OF_FRAMES = (int)(RECORD_TIME / MSEC_PER_FRAME);
 const int BYTES_RECORDED_PER_FRAME = 48; // 6 * 8;
 const int RECORDED_DATA_SIZE = NUMBER_OF_FRAMES * BYTES_RECORDED_PER_FRAME / 4;
-const std::string pathId = "testRec"; // TODO: add system for rec names
+const std::string recDir = "/data/recordings/";
+const std::string recTempDir = recDir + "temp/";
 
 /**
  * The identifacation of the subsystems running in this macro - must not be 0.
@@ -63,58 +64,84 @@ void recordLoop(void *) {
       conveyorV[i] *= 0.00398982267;
     }
 
-    // Allocate memory
-    int bufferSize = sizeof(Segment) * NUMBER_OF_FRAMES;
-    std::unique_ptr<Segment, void (*)(void *)> leftTrajectory(
-        (Segment *)malloc(bufferSize), free);
-    std::unique_ptr<Segment, void (*)(void *)> rightTrajectory(
-        (Segment *)malloc(bufferSize), free);
-    std::unique_ptr<Segment, void (*)(void *)> baseTrajectory(
-        (Segment *)malloc(bufferSize), free);
-    std::unique_ptr<Segment, void (*)(void *)> intakeTrajectory(
-        (Segment *)malloc(bufferSize), free);
-    std::unique_ptr<Segment, void (*)(void *)> conveyorTrajectory(
-        (Segment *)malloc(bufferSize), free);
-
-    for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
-      Segment baseLSeg = {dt, 0.0, 0.0, 0.0, baseLV[i], 0.0, 0.0, 0.0};
-      (leftTrajectory.get())[i] = baseLSeg;
-      Segment baseRSeg = {dt, 0.0, 0.0, 0.0, baseRV[i], 0.0, 0.0, 0.0};
-      (rightTrajectory.get())[i] = baseRSeg;
-      Segment baseSeg = {
-          dt,  baseX[i], baseY[i], 0.0, (baseRV[i] + baseLV[i]) / 2.0,
-          0.0, 0.0,      0.0};
-      (baseTrajectory.get())[i] = baseSeg;
-      Segment intakeSeg = {dt, 0.0, 0.0, 0.0, intakeV[i], 0.0, 0.0, 0.0};
-      (intakeTrajectory.get())[i] = intakeSeg;
-      Segment conveyorSeg = {dt, 0.0, 0.0, 0.0, conveyorV[i], 0.0, 0.0, 0.0};
-      (conveyorTrajectory.get())[i] = conveyorSeg;
-    }
-
-    profileBaseController->takePath(leftTrajectory, rightTrajectory,
-                                    baseTrajectory, NUMBER_OF_FRAMES,
-                                    pathId + ".raw");
-    profileIntakeController->takePath(intakeTrajectory, NUMBER_OF_FRAMES,
-                                      pathId + ".raw");
-    profileConveyorController->takePath(conveyorTrajectory, NUMBER_OF_FRAMES,
-                                        pathId + ".raw");
+    // //////SAVE_RAW_DATA//////
+    // // Allocate memory
+    // int bufferSize = sizeof(Segment) * NUMBER_OF_FRAMES;
+    // std::unique_ptr<Segment, void (*)(void *)> leftTrajectory(
+    //     (Segment *)malloc(bufferSize), free);
+    // std::unique_ptr<Segment, void (*)(void *)> rightTrajectory(
+    //     (Segment *)malloc(bufferSize), free);
+    // std::unique_ptr<Segment, void (*)(void *)> baseTrajectory(
+    //     (Segment *)malloc(bufferSize), free);
+    // std::unique_ptr<Segment, void (*)(void *)> intakeTrajectory(
+    //     (Segment *)malloc(bufferSize), free);
+    // std::unique_ptr<Segment, void (*)(void *)> conveyorTrajectory(
+    //     (Segment *)malloc(bufferSize), free);
+    //
+    // for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
+    //   Segment baseLSeg = {dt, 0.0, 0.0, 0.0, baseLV[i], 0.0, 0.0, 0.0};
+    //   (leftTrajectory.get())[i] = baseLSeg;
+    //   Segment baseRSeg = {dt, 0.0, 0.0, 0.0, baseRV[i], 0.0, 0.0, 0.0};
+    //   (rightTrajectory.get())[i] = baseRSeg;
+    //   Segment baseSeg = {
+    //       dt,  baseX[i], baseY[i], 0.0, (baseRV[i] + baseLV[i]) / 2.0,
+    //       0.0, 0.0,      0.0};
+    //   (baseTrajectory.get())[i] = baseSeg;
+    //   Segment intakeSeg = {dt, 0.0, 0.0, 0.0, intakeV[i], 0.0, 0.0, 0.0};
+    //   (intakeTrajectory.get())[i] = intakeSeg;
+    //   Segment conveyorSeg = {dt, 0.0, 0.0, 0.0, conveyorV[i], 0.0, 0.0, 0.0};
+    //   (conveyorTrajectory.get())[i] = conveyorSeg;
+    // }
+    //
+    // profileBaseController->takePath(leftTrajectory, rightTrajectory,
+    //                                 baseTrajectory, NUMBER_OF_FRAMES,
+    //                                 "temp.raw");
+    // profileIntakeController->takePath(intakeTrajectory, NUMBER_OF_FRAMES,
+    //                                   "temp.raw");
+    // profileConveyorController->takePath(conveyorTrajectory, NUMBER_OF_FRAMES,
+    //                                     "temp.raw");
+    //
+    // /////////
 
     double dtArr[NUMBER_OF_FRAMES];
     std::fill_n(dtArr, NUMBER_OF_FRAMES, dt);
 
     const double *baseData[] = {dtArr, baseX, baseY, baseLV, baseRV};
-    storeDoubles(NUMBER_OF_FRAMES, 5, baseData, "/data/recordings/",
-                 pathId + ".base");
 
     const double *intakeData[] = {dtArr, intakeV};
-    storeDoubles(NUMBER_OF_FRAMES, 2, intakeData, "/data/recordings/",
-                 pathId + ".intake");
 
     const double *conveyerData[] = {dtArr, conveyorV};
-    storeDoubles(NUMBER_OF_FRAMES, 2, conveyerData, "/data/recordings/",
-                 pathId + ".conveyor");
 
-    printf("Finished saving.\n");
+    // Save all the data temporarily to avoid mistake
+    storeDoubles(NUMBER_OF_FRAMES, 5, baseData, recTempDir, "temp.base");
+    storeDoubles(NUMBER_OF_FRAMES, 2, intakeData, recTempDir, "temp.intake");
+    storeDoubles(NUMBER_OF_FRAMES, 2, conveyerData, recTempDir,
+                 "temp.conveyor");
+
+    printf("Save recording? (Y/X)\n");
+
+    okapi::ControllerButton buttonX(okapi::ControllerDigital::X);
+    okapi::ControllerButton buttonY(okapi::ControllerDigital::Y);
+
+    while (true) {
+      if (buttonY.isPressed()) {
+
+        printf("Saving...\n");
+        const std::string name = getNewRecID(recDir);
+
+        storeDoubles(NUMBER_OF_FRAMES, 5, baseData, recDir, name + ".base");
+        storeDoubles(NUMBER_OF_FRAMES, 2, intakeData, recDir, name + ".intake");
+        storeDoubles(NUMBER_OF_FRAMES, 2, conveyerData, recDir,
+                     name + ".conveyor");
+        printf("Finished saving.\n");
+        break;
+
+      } else if (buttonX.isPressed()) {
+        printf("NOT Saving Recording.\n");
+        break;
+      }
+      pros::Task::delay(50);
+    }
 
     breakMacros(used_subsystems);
   }

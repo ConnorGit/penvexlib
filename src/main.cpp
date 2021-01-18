@@ -106,11 +106,11 @@ void initialize() {
   // CONVEYOR init:
 
   conveyorL = std::make_shared<okapi::Motor>(-9);
-  conveyorL = std::make_shared<okapi::Motor>(14);
+  conveyorR = std::make_shared<okapi::Motor>(14);
 
   conveyor = std::make_shared<okapi::MotorGroup>(
       std::initializer_list<std::shared_ptr<okapi::AbstractMotor>>{conveyorL,
-                                                                   conveyorL});
+                                                                   conveyorR});
 
   profileConveyorController =
       okapi::AsyncMotionProfileControllerBuilderMod()
