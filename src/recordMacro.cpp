@@ -49,6 +49,7 @@ void recordLoop(void *) {
       baseRV[i] = baseFR->getActualVelocity();
       intakeV[i] = intake->getActualVelocity();
       conveyorV[i] = conveyor->getActualVelocity();
+      printf("%f\n", intakeV[i]);
       timer.delayUntil(MSEC_PER_FRAME);
     }
     printf("Finished recording.\n");
@@ -60,8 +61,8 @@ void recordLoop(void *) {
     for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
       baseLV[i] *= 0.01097201234; // (PI*wheelDiam(m)*gearRatio/60sec))
       baseRV[i] *= 0.01097201234;
-      intakeV[i] *= 0.00465479311;
-      conveyorV[i] *= 0.00398982267;
+      intakeV[i] *= 0.00465479311 * 1.0481;
+      conveyorV[i] *= 0.00398982267 * 5.9568944116; // hack
     }
 
     // //////SAVE_RAW_DATA//////
