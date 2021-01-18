@@ -113,6 +113,7 @@ void recordLoop(void *) {
     const double *conveyerData[] = {dtArr, conveyorV};
 
     // Save all the data temporarily to avoid mistake
+    createBasicMasterFile(recTempDir, "temp");
     storeDoubles(NUMBER_OF_FRAMES, 5, baseData, recTempDir, "temp.base");
     storeDoubles(NUMBER_OF_FRAMES, 2, intakeData, recTempDir, "temp.intake");
     storeDoubles(NUMBER_OF_FRAMES, 2, conveyerData, recTempDir,
@@ -128,6 +129,8 @@ void recordLoop(void *) {
 
         printf("Saving...\n");
         const std::string name = getNewRecID(recDir);
+
+        createBasicMasterFile(recDir, name);
 
         storeDoubles(NUMBER_OF_FRAMES, 5, baseData, recDir, name + ".base");
         storeDoubles(NUMBER_OF_FRAMES, 2, intakeData, recDir, name + ".intake");

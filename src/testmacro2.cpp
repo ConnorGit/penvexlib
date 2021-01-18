@@ -22,27 +22,30 @@ const unsigned int used_subsystems = 0b10;
  */
 void macroTest2(void *) {
   printf("started macro\n");
-  penvex::record::loadPath(profileBaseController, "/data/recordings/",
-                           "testRec.base", "testRec");
-  penvex::record::loadPath(profileIntakeController, "/data/recordings/",
-                           "testRec.intake", "testRec");
-  penvex::record::loadPath(profileConveyorController, "/data/recordings/",
-                           "testRec.conveyor", "testRec");
 
-  printf("started driving\n");
-  profileBaseController->setTarget(
-      "testRec", okapi::AsyncMeshMpPpController::Mp, false, false);
+  penvex::master::runMasterFile("/data/recordings/temp/", "temp");
 
-  profileIntakeController->setTarget("testRec");
-
-  profileConveyorController->setTarget("testRec");
-
-  profileBaseController->waitUntilSettled();
-  profileIntakeController->waitUntilSettled();
-  profileConveyorController->waitUntilSettled();
-  base->stop();
-  intake->moveVoltage(0);
-  conveyor->moveVoltage(0);
+  // penvex::record::loadPath(profileBaseController, "/data/recordings/",
+  //                          "testRec.base", "testRec");
+  // penvex::record::loadPath(profileIntakeController, "/data/recordings/",
+  //                          "testRec.intake", "testRec");
+  // penvex::record::loadPath(profileConveyorController, "/data/recordings/",
+  //                          "testRec.conveyor", "testRec");
+  //
+  // printf("started driving\n");
+  // profileBaseController->setTarget(
+  //     "testRec", okapi::AsyncMeshMpPpController::Mp, false, false);
+  //
+  // profileIntakeController->setTarget("testRec");
+  //
+  // profileConveyorController->setTarget("testRec");
+  //
+  // profileBaseController->waitUntilSettled();
+  // profileIntakeController->waitUntilSettled();
+  // profileConveyorController->waitUntilSettled();
+  // base->stop();
+  // intake->moveVoltage(0);
+  // conveyor->moveVoltage(0);
 
   printf("done with profile\n");
 

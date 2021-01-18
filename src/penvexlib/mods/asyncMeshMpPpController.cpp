@@ -378,7 +378,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
    * current point. If it reaches the end of the path it will set the goal
    * to the last point.
    */
-  QLength x = path.base.get()[params.i].x * meter * params.reversed;
+  QLength x = path.base.get()[params.i].x * meter;
   QLength y = path.base.get()[params.i].y * meter * mirror;
 
   double lengthToPointSquare =
@@ -387,7 +387,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
   while ((!params.targetAPoint) && (params.i < params.pathLength - 1) &&
          (lengthToPointSquare <= params.lookAheadSquare)) {
     params.i++;
-    x = path.base.get()[params.i].x * meter * params.reversed;
+    x = path.base.get()[params.i].x * meter;
     y = path.base.get()[params.i].y * meter * mirror;
     lengthToPointSquare = computeDistanceSquareToPoint_m({x, y}, currentPos);
   }
@@ -410,18 +410,16 @@ void AsyncMeshMpPpController::stepPurePursuit(
 
   // They cant both be 0
   if (fabs(leftSaclar) >= fabs(rightSaclar)) {
-    params.leftSpeed = params.pursuitSpeed * params.reversed;
-    params.rightSpeed =
-        params.pursuitSpeed * (rightSaclar / leftSaclar) * params.reversed;
+    params.leftSpeed = params.pursuitSpeed;
+    params.rightSpeed = params.pursuitSpeed * (rightSaclar / leftSaclar);
   } else {
-    params.leftSpeed =
-        params.pursuitSpeed * (leftSaclar / rightSaclar) * params.reversed;
-    params.rightSpeed = params.pursuitSpeed * params.reversed;
+    params.leftSpeed = params.pursuitSpeed * (leftSaclar / rightSaclar);
+    params.rightSpeed = params.pursuitSpeed;
   }
 
   if (params.reversed == -1) {
-    model->left(params.rightSpeed);
-    model->right(params.leftSpeed);
+    model->left(-params.rightSpeed);
+    model->right(-params.leftSpeed);
   } else {
     model->left(params.leftSpeed);
     model->right(params.rightSpeed);

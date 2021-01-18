@@ -89,12 +89,11 @@ void createBasicMasterFile(const std::string &idirectory,
   // Write default file
   char buf[1024];
   sprintf(buf,
-          "15,%s\nLD,B,%s\nLD,I,%s\nLD,C,%s\nMP,B,%s\nMP,I,%s\nMP,C,%s\nWIS,B,%"
-          "s\nSTOP,B\nWIS,I,%s\nSTOP,I\nWIS,C,%s\nSTOP,C\nRM,B,%s\nRM,I,%s\nRM,"
+          "15,%s\nLD,B,%s\nLD,I,%s\nLD,C,%s\nMP,B,%s\nMP,I,%s\nMP,C,%s\nWIS,"
+          "B\nSTOP,B\nWIS,I\nSTOP,I\nWIS,C\nSTOP,C\nRM,B,%s\nRM,I,%s\nRM,"
           "C,%s",
           idirectory.c_str(), baseStr, intakeStr, conveyorStr, baseStr,
-          intakeStr, conveyorStr, baseStr, intakeStr, conveyorStr, baseStr,
-          intakeStr, conveyorStr);
+          intakeStr, conveyorStr, baseStr, intakeStr, conveyorStr);
   fputs(buf, currentFile);
 
   fclose(currentFile);
@@ -121,21 +120,22 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
 
   fgets(line, 1024, currentFile);
 
-  strData = strtok(line, ",");
+  strData = strtok(line, ",\n");
   int length = std::stoi(strData, NULL);
-  strData = strtok(NULL, ",");
+  strData = strtok(NULL, ",\n");
   fillDir = std::string(strData);
 
   // NOTE: Make sure to free all the masterfunctions after use
   masterFunctionList =
       (masterFunction **)malloc(sizeof(masterFunction *) * length);
 
-  auto readMasterFunctionSubsttId = [strData]() -> masterFunctionSubsttId {
-    if (!strcmp(strData, "B"))
+  auto readMasterFunctionSubsttId =
+      [](char SubstIdChar) -> masterFunctionSubsttId {
+    if (SubstIdChar == 'B')
       return B;
-    if (!strcmp(strData, "I"))
+    if (SubstIdChar == 'I')
       return I;
-    if (!strcmp(strData, "C"))
+    if (SubstIdChar == 'C')
       return C;
     printf("ERROR reading subst id.\n");
     return B;
@@ -144,7 +144,7 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
   int seg_n = 0;
   while (fgets(line, 1024, currentFile)) {
 
-    strData = strtok(line, ",");
+    strData = strtok(line, ",\n");
     masterFunctionId id;
     if (!strcmp(strData, "LD"))
       id = LD;
@@ -173,10 +173,12 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
     case MP: {
       masterFunctionSubstPathId *tempFunc = new masterFunctionSubstPathId();
       tempFunc->funcId = id;
-      strData = strtok(NULL, ",");
-      tempFunc->substId = readMasterFunctionSubsttId();
-      std::string pathid(strtok(NULL, ","));
+      strData = strtok(NULL, ",\n");
+      tempFunc->substId = readMasterFunctionSubsttId(strData[0]);
+      std::string pathid(strtok(NULL, ",\n"));
       tempFunc->pathId = pathid;
+      // printf("%d, %d, %s\n", (int)tempFunc->funcId, (int)tempFunc->substId,
+      //        tempFunc->pathId.c_str());
       (masterFunctionList)[seg_n] = tempFunc;
     } break;
 
@@ -185,15 +187,17 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
       masterFunctionSubstPathIdRev *tempFunc =
           new masterFunctionSubstPathIdRev();
       tempFunc->funcId = id;
-      strData = strtok(NULL, ",");
-      tempFunc->substId = readMasterFunctionSubsttId();
-      std::string pathid(strtok(NULL, ","));
+      strData = strtok(NULL, ",\n");
+      tempFunc->substId = readMasterFunctionSubsttId(strData[0]);
+      std::string pathid(strtok(NULL, ",\n"));
       tempFunc->pathId = pathid;
-      strData = strtok(NULL, ",");
-      if (!strcmp(strData, "TRUE"))
+      strData = strtok(NULL, ",\n");
+      if (strData[0] == 'T')
         tempFunc->rev = true;
       else
         tempFunc->rev = false;
+      // printf("%d, %d, %s, %d\n", (int)tempFunc->funcId, (int)tempFunc->substId,
+      //        tempFunc->pathId.c_str(), (int)tempFunc->rev);
       (masterFunctionList)[seg_n] = tempFunc;
     } break;
 
@@ -201,8 +205,9 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
     case DRV: {
       masterFunctionDouble *tempFunc = new masterFunctionDouble();
       tempFunc->funcId = id;
-      strData = strtok(NULL, ",");
+      strData = strtok(NULL, ",\n");
       tempFunc->value = strtod(strData, NULL);
+      // printf("%d, %f\n", (int)tempFunc->funcId, tempFunc->value);
       (masterFunctionList)[seg_n] = tempFunc;
     } break;
 
@@ -210,20 +215,23 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
     case WIS: {
       masterFunctionSubst *tempFunc = new masterFunctionSubst();
       tempFunc->funcId = id;
-      strData = strtok(NULL, ",");
-      tempFunc->substId = readMasterFunctionSubsttId();
+      strData = strtok(NULL, ",\n");
+      tempFunc->substId = readMasterFunctionSubsttId(strData[0]);
+      // printf("%d, %d\n", (int)tempFunc->funcId, (int)tempFunc->substId);
       (masterFunctionList)[seg_n] = tempFunc;
     } break;
 
     case WD: {
       masterFunctionDoubleXY *tempFunc = new masterFunctionDoubleXY();
       tempFunc->funcId = id;
-      strData = strtok(NULL, ",");
+      strData = strtok(NULL, ",\n");
       tempFunc->value = strtod(strData, NULL);
-      strData = strtok(NULL, ",");
+      strData = strtok(NULL, ",\n");
       tempFunc->x = strtod(strData, NULL);
-      strData = strtok(NULL, ",");
+      strData = strtok(NULL, ",\n");
       tempFunc->y = strtod(strData, NULL);
+      // printf("%d, %f, %f, %f\n", (int)tempFunc->funcId, tempFunc->value,
+      //        tempFunc->x, tempFunc->y);
       (masterFunctionList)[seg_n] = tempFunc;
     } break;
 
