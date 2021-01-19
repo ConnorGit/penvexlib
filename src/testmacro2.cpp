@@ -21,6 +21,7 @@ const unsigned int used_subsystems = 0b10;
  * The macro function to run.
  */
 void macroTest2(void *) {
+
   printf("started macro\n");
 
   penvex::master::runMasterFile("/data/recordings/temp/", "temp");

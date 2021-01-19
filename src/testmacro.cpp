@@ -8,6 +8,7 @@
 #include "main.h"
 
 using namespace penvex::macro;
+using namespace okapi;
 
 namespace scripts {
 
@@ -17,8 +18,13 @@ namespace scripts {
 void macroTest(void *) {
   printf("\nstarting macroTest");
   while (true) {
-    printf("\nrunning macroTest");
-    pros::Task::delay(300);
+    base->turnToAngle(90_deg);
+    pros::Task::delay(5000);
+    // printf("%f\n", baseFL->getPosition());
+    // OdomState state = base->getOdometry()->getState();
+    // printf("%f, %f %f\n", state.x.convert(inch), state.y.convert(inch),
+    //        state.theta.convert(degree));
+    // pros::Task::delay(20);
   }
 }
 

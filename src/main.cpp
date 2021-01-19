@@ -56,17 +56,18 @@ void initialize() {
 
   // NOTE: Okapi didnt properly implement GearsetRatioPair into chassis
   // ChassisControllerBuilder - I am just telling it the wheels are three times
-  // as big
+  // as big trn{0.0013, 0.0003, 0.00002} ang{0.00135, 0.0005, 0.00002}
   base = okapi::ChassisControllerBuilder()
              .withMotors({-20, -19}, {18, 17})
              .withSensors(okapi::IntegratedEncoder{19, true},
                           okapi::IntegratedEncoder{17, false},
                           okapi::ADIEncoder{'G', 'H', true})
-             .withDimensions(okapi::AbstractMotor::gearset::red, baseScalesHack)
-             .withGains({0.001, 0.0, 0.0}, // Distance controller gains
-                        {0.0, 0.0, 0.0},   // Turn controller gains
-                        {0.0, 0.0, 0.0}    // Angle controller gains
+             .withDimensions(okapi::AbstractMotor::gearset::red, baseScales)
+             .withGains({0.00085, 0.0002, 0.00001}, // Distance controller gains
+                        {0.0013, 0.0003, 0.00002},  // Turn controller gains
+                        {0.00135, 0.0005, 0.00002}  // Angle controller gains
                         )
+             .withClosedLoopControllerTimeUtil(5.0, 1.0, 250_ms)
              .withOdometry(baseScales)
              .buildOdometry();
 
@@ -242,21 +243,15 @@ void opcontrol() {
     // Macro controll and handeling:
     currentlyUsedMacroSubsystems = penvex::macro::getAllUsedSubsystems();
 
-    if (buttonUp.changedToReleased())
+    if (buttonUp.changedToReleased()) {
       scripts::runMacroTest();
-
-    // if (buttonDown.changedToReleased()) {
-    //   // penvex::macro::breakMacros(0b01);
-    //   testStr = base->getOdometry()->getState().str();
-    //   printf("%s\n", testStr.c_str());
-    //   // printf("%d\n", currentlyUsedMacroSubsystems);
-    // }
+    }
 
     if (buttonLeft.changedToReleased())
       scripts::runMacroTest2();
 
     if (buttonRight.changedToReleased())
-      penvex::macro::breakMacros(0b10);
+      penvex::macro::breakMacros(0b01);
 
     /////////////////////////////////////////BASE/////////////////////////////////////////////////////////
     ////----------MACRO----
