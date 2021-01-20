@@ -166,6 +166,8 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
       id = WIS;
     if (!strcmp(strData, "WD"))
       id = WD;
+    if (!strcmp(strData, "DTP"))
+      id = DTP;
 
     switch (id) {
     case LD:
@@ -222,7 +224,8 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
       (masterFunctionList)[seg_n] = tempFunc;
     } break;
 
-    case WD: {
+    case WD:
+    case DTP: {
       masterFunctionDoubleXY *tempFunc = new masterFunctionDoubleXY();
       tempFunc->funcId = id;
       strData = strtok(NULL, ",\n");

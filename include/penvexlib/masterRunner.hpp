@@ -16,7 +16,7 @@ namespace penvex::master {
 // TODO: This master file thing is terrible and needs to go but it is a
 // nessicary evil at the moment
 
-enum masterFunctionId { LD, RM, MP, PP, MPPP, TRN, DRV, STOP, WIS, WD };
+enum masterFunctionId { LD, RM, MP, PP, MPPP, TRN, DRV, STOP, WIS, WD, DTP };
 enum masterFunctionSubsttId { B, I, C };
 struct masterFunction {
   masterFunctionId funcId;

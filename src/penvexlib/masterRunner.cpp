@@ -156,6 +156,14 @@ void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
       }
     } break;
 
+    case DTP:
+      base->driveToPoint(
+          okapi::Point{((((masterFunctionDoubleXY *)masterFunctionList[i])->x) *
+                        okapi::meter),
+                       ((((masterFunctionDoubleXY *)masterFunctionList[i])->y) *
+                        okapi::meter)});
+      break;
+
     default:
       break;
     }
