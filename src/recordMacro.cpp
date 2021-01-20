@@ -32,6 +32,9 @@ const unsigned int used_subsystems = 0b1000;
 void recordLoop(void *) {
   while (true) {
     printf("Stared recording.\n");
+
+    resetData();
+
     double baseX[NUMBER_OF_FRAMES];
     double baseY[NUMBER_OF_FRAMES];
     double baseLV[NUMBER_OF_FRAMES];
@@ -49,7 +52,7 @@ void recordLoop(void *) {
       baseRV[i] = baseFR->getActualVelocity();
       intakeV[i] = intake->getActualVelocity();
       conveyorV[i] = conveyor->getActualVelocity();
-      printf("%f\n", intakeV[i]);
+      // printf("%f\n", conveyorV[i]);
       timer.delayUntil(MSEC_PER_FRAME);
     }
     printf("Finished recording.\n");
@@ -59,10 +62,10 @@ void recordLoop(void *) {
     double dt = ((double)MSEC_PER_FRAME / 1000.0);
 
     for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
-      baseLV[i] *= 0.01097201234; // (PI*wheelDiam(m)*gearRatio/60sec))
-      baseRV[i] *= 0.01097201234;
+      baseLV[i] *= 0.00365733744; // (PI*wheelDiam(m)*gearRatio(1)/60sec))
+      baseRV[i] *= 0.00365733744;
       intakeV[i] *= 0.00465479311 * 1.0481;
-      conveyorV[i] *= 0.00398982267 * 5.9568944116; // hack
+      conveyorV[i] *= 0.00398982267 * 3.0; //* 5.9568944116; // hack
     }
 
     // //////SAVE_RAW_DATA//////

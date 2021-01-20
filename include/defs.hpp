@@ -34,4 +34,6 @@ extern std::shared_ptr<okapi::MotorGroup> conveyor;
 extern std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod>
     profileConveyorController;
 
+extern void resetData();
+
 #endif // _DEFS_HPP_

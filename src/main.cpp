@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace okapi::literals;
+
 // Defs:
 const unsigned int penvex::macro::numberOfSubsystems = 2;
 
@@ -30,6 +32,13 @@ std::shared_ptr<okapi::MotorGroup> conveyor;
 std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod>
     profileConveyorController;
 
+void resetData() {
+  base->getModel()->resetSensors();
+  intake->tarePosition();
+  conveyor->tarePosition();
+  base->setState(okapi::OdomState{0.0_m, 0.0_m, 0.0_deg});
+}
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -40,14 +49,13 @@ void initialize() {
   okapi::Logger::setDefaultLogger(std::make_shared<okapi::Logger>(
       okapi::TimeUtilFactory::createDefault().getTimer(),
       "/ser/sout", // Output to the PROS terminal
-      okapi::Logger::LogLevel::info));
+      okapi::Logger::LogLevel::debug));
 
   // BASE init:
 
   baseFL = std::make_shared<okapi::Motor>(-19);
   baseFR = std::make_shared<okapi::Motor>(17);
 
-  using namespace okapi::literals;
   okapi::ChassisScales baseScales(
       {2.75_in, 14.3125_in, 5.1875_in, 4.58333333_in}, 600);
 
@@ -71,7 +79,7 @@ void initialize() {
              .withOdometry(baseScales)
              .buildOdometry();
 
-  okapi::PurePursuitConstants constants{0.4, 8.0_in, 5_in, 0.7_in};
+  okapi::PurePursuitConstants constants{0.7, 9.0_in, 5_in, 0.7_in};
 
   // NOTE: This might cause init to run out of stack space
   profileBaseController =
@@ -270,12 +278,12 @@ void opcontrol() {
     } ////----MACRO----
 
     /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
-    intake->moveVoltage(11000 *
-                        (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
+    intake->moveVelocity(200 *
+                         (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
 
     /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
-    conveyor->moveVoltage(
-        12000 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
+    conveyor->moveVelocity(
+        600 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
 
     //////////////////////////////////////////////MISC///////////////////////////////////////////////////
 

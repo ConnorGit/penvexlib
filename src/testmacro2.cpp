@@ -26,29 +26,32 @@ void macroTest2(void *) {
 
   penvex::master::runMasterFile("/data/recordings/temp/", "temp");
 
-  // penvex::record::loadPath(profileBaseController, "/data/recordings/",
-  //                          "testRec.base", "testRec");
-  // penvex::record::loadPath(profileIntakeController, "/data/recordings/",
-  //                          "testRec.intake", "testRec");
-  // penvex::record::loadPath(profileConveyorController, "/data/recordings/",
-  //                          "testRec.conveyor", "testRec");
+  // // penvex::record::loadPath(profileBaseController, "/data/recordings/",
+  // //                          "testRec.base", "testRec");
+  // // penvex::record::loadPath(profileIntakeController, "/data/recordings/",
+  // //                          "testRec.intake", "testRec");
+  // // penvex::record::loadPath(profileConveyorController, "/data/recordings/",
+  // //                          "testRec.conveyor", "testRec");
+  //
+  // profileBaseController->generatePath(
+  //     {{0.0_in, 0.0_in, 0.0_deg}, {20.0_in, 10.0_in, 0.0_deg}}, "testRec");
   //
   // printf("started driving\n");
   // profileBaseController->setTarget(
-  //     "testRec", okapi::AsyncMeshMpPpController::Mp, false, false);
+  //     "testRec", okapi::AsyncMeshMpPpController::Pp, false, false);
   //
-  // profileIntakeController->setTarget("testRec");
-  //
-  // profileConveyorController->setTarget("testRec");
+  // // profileIntakeController->setTarget("testRec");
+  // //
+  // // profileConveyorController->setTarget("testRec");
   //
   // profileBaseController->waitUntilSettled();
-  // profileIntakeController->waitUntilSettled();
-  // profileConveyorController->waitUntilSettled();
+  // // profileIntakeController->waitUntilSettled();
+  // // profileConveyorController->waitUntilSettled();
   // base->stop();
-  // intake->moveVoltage(0);
-  // conveyor->moveVoltage(0);
-
-  printf("done with profile\n");
+  // // intake->moveVoltage(0);
+  // // conveyor->moveVoltage(0);
+  //
+  // printf("done with profile\n");
 
   // Must have this line at the end of the macro
   endMacro(used_subsystems);

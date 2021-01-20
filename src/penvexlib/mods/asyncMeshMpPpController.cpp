@@ -122,9 +122,9 @@ void AsyncMeshMpPpController::generatePath(
   }
 
   LOG_INFO_S("AsyncMeshMpPpController: Modifying for tank drive");
-  pathfinder_modify_tank(trajectory.get(), length, leftTrajectory.get(),
-                         rightTrajectory.get(),
-                         scales.wheelTrack.convert(meter));
+  pathfinder_modify_tank(
+      trajectory.get(), length, rightTrajectory.get(), leftTrajectory.get(),
+      scales.wheelTrack.convert(meter)); // HACK: Flipped left and right
 
   // Free the old path before overwriting it
   forceRemovePath(ipathId);
@@ -363,7 +363,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
     const TrajectoryTripple &path, std::unique_ptr<AbstractRate> &rate,
     controlLoopParams &params) {
 
-  const double mirror = (params.followMirrored ? 1.0 : -1.0);
+  const double mirror = (params.followMirrored ? -1.0 : 1.0);
 
   OdomState currentPos = odom->getState();
 
@@ -428,7 +428,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
   // Unlock before the delay to be nice to other tasks
   currentPathMutex.unlock();
   // printf("Pp\n");
-  rate->delayUntil(10_ms);
+  rate->delayUntil(100_ms);
 }
 
 int AsyncMeshMpPpController::manageMotionProfiling(
@@ -444,7 +444,7 @@ int AsyncMeshMpPpController::manageMotionProfilingMesh(
     const OdomState currentPos = odom->getState();
     const QLength x = path.base.get()[params.i].x * meter * params.reversed;
     const QLength y = path.base.get()[params.i].y * meter *
-                      (params.followMirrored ? 1.0 : -1.0);
+                      (params.followMirrored ? -1.0 : 1.0);
     const double distSquare =
         (computeDistanceSquareToPoint_m({x, y}, currentPos));
     if (distSquare >= params.breakMoProSquare)
@@ -462,19 +462,20 @@ int AsyncMeshMpPpController::managePurePursuit(
     const OdomState currentPos = odom->getState();
     const QLength x = path.base.get()[params.i].x * meter * params.reversed;
     const QLength y = path.base.get()[params.i].y * meter *
-                      (params.followMirrored ? 1.0 : -1.0);
+                      (params.followMirrored ? -1.0 : 1.0);
     const double distSquare =
         (computeDistanceSquareToPoint_m({x, y}, currentPos));
 
     std::scoped_lock lock(purePursuitConstantsMutex);
-    params.pursuitSpeed =
-        PpConstants.pursuitSpeed * (distSquare / params.lookAheadSquare);
+    params.pursuitSpeed = PpConstants.pursuitSpeed *
+                          std::sqrt(distSquare / params.lookAheadSquare);
     if (params.pursuitSpeed > PpConstants.pursuitSpeed) {
       params.pursuitSpeed = PpConstants.pursuitSpeed;
     }
+    printf("%f\n", params.pursuitSpeed);
     purePursuitConstantsMutex.unlock();
     return (int)((distSquare <= params.joinDistSquare) ||
-                 (t >= 150)); // TODO: magic number2
+                 (t >= 50)); // TODO: magic number2
   }
   if (params.targetAPoint) {
     params.targetAPoint = false;
@@ -501,7 +502,7 @@ int AsyncMeshMpPpController::managePurePursuitMesh(
     const OdomState currentPos = odom->getState();
     const QLength x = path.base.get()[params.i].x * meter * params.reversed;
     const QLength y = path.base.get()[params.i].y * meter *
-                      (params.followMirrored ? 1.0 : -1.0);
+                      (params.followMirrored ? -1.0 : 1.0);
     const double distSquare =
         (computeDistanceSquareToPoint_m({x, y}, currentPos));
 
@@ -521,7 +522,7 @@ int AsyncMeshMpPpController::managePurePursuitMesh(
             toUnderlyingType(pair.internalGearset) * params.reversed;
     }
 
-    const double percentChange = (distSquare / params.lookAheadSquare);
+    const double percentChange = std::sqrt(distSquare / params.lookAheadSquare);
 
     std::scoped_lock lock(purePursuitConstantsMutex);
     params.pursuitSpeed = PpConstants.pursuitSpeed * percentChange +

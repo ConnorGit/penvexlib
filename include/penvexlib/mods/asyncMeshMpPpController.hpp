@@ -31,7 +31,7 @@ struct PurePursuitConstants {
   QLength lookAhead; // The distance the controller looks ahead when driving to
   // a point on the path.
   QLength breakMoPro; // The distance robot must be from the current process
-                      // pint to break mopro in mesh
+                      // point to break mopro in mesh
   QLength joinDist;   // The distance robot must be to end a target point loop -
                       // ending a pp or rejoining a mp
 };

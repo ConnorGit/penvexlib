@@ -9,6 +9,8 @@ void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
   penvex::record::readMasterFile(masterFunctionList, dirName, len, idirectory,
                                  ipathId);
 
+  resetData();
+
   // TODO: this is bad for a lot of reasons but one is that inheritance is not
   // properly implemented
 
@@ -61,14 +63,17 @@ void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
         profileBaseController->setTarget(
             ((masterFunctionSubstPathId *)masterFunctionList[i])->pathId,
             okapi::AsyncMeshMpPpController::Mp, false, false);
+        profileBaseController->flipDisable(false);
         break;
       case I:
         profileIntakeController->setTarget(
             ((masterFunctionSubstPathId *)masterFunctionList[i])->pathId);
+        profileIntakeController->flipDisable(false);
         break;
       case C:
         profileConveyorController->setTarget(
             ((masterFunctionSubstPathId *)masterFunctionList[i])->pathId);
+        profileConveyorController->flipDisable(false);
         break;
       }
       break;
@@ -78,6 +83,7 @@ void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
           ((masterFunctionSubstPathIdRev *)masterFunctionList[i])->pathId,
           okapi::AsyncMeshMpPpController::Pp,
           ((masterFunctionSubstPathIdRev *)masterFunctionList[i])->rev, false);
+      profileBaseController->flipDisable(false);
       break;
 
     case MPPP:
@@ -85,6 +91,7 @@ void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
           ((masterFunctionSubstPathIdRev *)masterFunctionList[i])->pathId,
           okapi::AsyncMeshMpPpController::MpPp,
           ((masterFunctionSubstPathIdRev *)masterFunctionList[i])->rev, false);
+      profileBaseController->flipDisable(false);
       break;
 
     case TRN:
