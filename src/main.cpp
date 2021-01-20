@@ -51,6 +51,8 @@ void initialize() {
       "/ser/sout", // Output to the PROS terminal
       okapi::Logger::LogLevel::debug));
 
+  pros::lcd::initialize();
+
   // BASE init:
 
   baseFL = std::make_shared<okapi::Motor>(-19);
@@ -163,7 +165,7 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {}
+void autonomous() { penvex::master::runMasterFile("/data/final", "final"); }
 
 /**
  * Configuration for the buttons of the robot with the standard syntax:
@@ -277,15 +279,31 @@ void opcontrol() {
           ->tank(master.getAnalog(LEFT_Y_JOY), master.getAnalog(RIGHT_Y_JOY));
     } ////----MACRO----
 
-    /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
-    intake->moveVelocity(200 *
-                         (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
+    // if recording
+    if (currentlyUsedMacroSubsystems & 0b1000) {
 
-    /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
-    conveyor->moveVelocity(
-        600 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
+      /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
+      intake->moveVelocity(
+          200 * (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
 
-    //////////////////////////////////////////////MISC///////////////////////////////////////////////////
+      /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
+      conveyor->moveVelocity(
+          600 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
+
+      //////////////////////////////////////////////MISC///////////////////////////////////////////////////
+
+    } else {
+
+      /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
+      intake->moveVoltage(12000 *
+                          (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
+
+      /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
+      conveyor->moveVoltage(
+          12000 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
+
+      //////////////////////////////////////////////MISC///////////////////////////////////////////////////
+    }
 
     // Acavate the record function
     if (RECORD_B.changedToReleased()) {

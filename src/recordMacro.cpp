@@ -13,7 +13,7 @@ using namespace okapi::literals;
 namespace penvex::record {
 
 // STICK THIS IN A DIFF FILE
-const int RECORD_TIME = 5000;  // Period of time of one recording
+const int RECORD_TIME = 20000; // Period of time of one recording
 const int MSEC_PER_FRAME = 10; // the time between frimes in msec
 const int NUMBER_OF_FRAMES = (int)(RECORD_TIME / MSEC_PER_FRAME);
 const int BYTES_RECORDED_PER_FRAME = 48; // 6 * 8;
@@ -32,8 +32,13 @@ const unsigned int used_subsystems = 0b1000;
 void recordLoop(void *) {
   while (true) {
     printf("Stared recording.\n");
+    pros::lcd::print(0, "Recording %fs remaining.",
+                     ((double)RECORD_TIME) / 1000.0);
 
-    resetData();
+    // resetData();
+
+    okapi::ControllerButton buttonX(okapi::ControllerDigital::X);
+    okapi::ControllerButton buttonY(okapi::ControllerDigital::Y);
 
     double baseX[NUMBER_OF_FRAMES];
     double baseY[NUMBER_OF_FRAMES];
@@ -44,6 +49,8 @@ void recordLoop(void *) {
 
     okapi::Rate timer;
 
+    int lengthOfRec = NUMBER_OF_FRAMES;
+
     for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
       okapi::OdomState currentPos = base->getState();
       baseX[i] = currentPos.x.getValue();
@@ -52,7 +59,15 @@ void recordLoop(void *) {
       baseRV[i] = baseFR->getActualVelocity();
       intakeV[i] = intake->getActualVelocity();
       conveyorV[i] = conveyor->getActualVelocity();
+      if (buttonX.isPressed()) {
+        lengthOfRec = (i + 1);
+        break;
+      }
       // printf("%f\n", conveyorV[i]);
+      if (i % 10 == 0)
+        pros::lcd::print(0, "Recording %fs remaining.",
+                         ((double)(RECORD_TIME - (i * MSEC_PER_FRAME))) /
+                             1000.0);
       timer.delayUntil(MSEC_PER_FRAME);
     }
     printf("Finished recording.\n");
@@ -61,7 +76,7 @@ void recordLoop(void *) {
 
     double dt = ((double)MSEC_PER_FRAME / 1000.0);
 
-    for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
+    for (int i = 0; i < lengthOfRec; i++) {
       baseLV[i] *= 0.00365733744; // (PI*wheelDiam(m)*gearRatio(1)/60sec))
       baseRV[i] *= 0.00365733744;
       intakeV[i] *= 0.00465479311 * 1.0481;
@@ -70,7 +85,7 @@ void recordLoop(void *) {
 
     // //////SAVE_RAW_DATA//////
     // // Allocate memory
-    // int bufferSize = sizeof(Segment) * NUMBER_OF_FRAMES;
+    // int bufferSize = sizeof(Segment) * lengthOfRec;
     // std::unique_ptr<Segment, void (*)(void *)> leftTrajectory(
     //     (Segment *)malloc(bufferSize), free);
     // std::unique_ptr<Segment, void (*)(void *)> rightTrajectory(
@@ -82,7 +97,7 @@ void recordLoop(void *) {
     // std::unique_ptr<Segment, void (*)(void *)> conveyorTrajectory(
     //     (Segment *)malloc(bufferSize), free);
     //
-    // for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
+    // for (int i = 0; i < lengthOfRec; i++) {
     //   Segment baseLSeg = {dt, 0.0, 0.0, 0.0, baseLV[i], 0.0, 0.0, 0.0};
     //   (leftTrajectory.get())[i] = baseLSeg;
     //   Segment baseRSeg = {dt, 0.0, 0.0, 0.0, baseRV[i], 0.0, 0.0, 0.0};
@@ -98,17 +113,17 @@ void recordLoop(void *) {
     // }
     //
     // profileBaseController->takePath(leftTrajectory, rightTrajectory,
-    //                                 baseTrajectory, NUMBER_OF_FRAMES,
+    //                                 baseTrajectory, lengthOfRec,
     //                                 "temp.raw");
-    // profileIntakeController->takePath(intakeTrajectory, NUMBER_OF_FRAMES,
+    // profileIntakeController->takePath(intakeTrajectory, lengthOfRec,
     //                                   "temp.raw");
-    // profileConveyorController->takePath(conveyorTrajectory, NUMBER_OF_FRAMES,
+    // profileConveyorController->takePath(conveyorTrajectory, lengthOfRec,
     //                                     "temp.raw");
-    //
-    // /////////
 
-    double dtArr[NUMBER_OF_FRAMES];
-    std::fill_n(dtArr, NUMBER_OF_FRAMES, dt);
+    /////////
+
+    double dtArr[lengthOfRec];
+    std::fill_n(dtArr, lengthOfRec, dt);
 
     const double *baseData[] = {dtArr, baseX, baseY, baseLV, baseRV};
 
@@ -118,37 +133,40 @@ void recordLoop(void *) {
 
     // Save all the data temporarily to avoid mistake
     createBasicMasterFile(recTempDir, "temp");
-    storeDoubles(NUMBER_OF_FRAMES, 5, baseData, recTempDir, "temp.base");
-    storeDoubles(NUMBER_OF_FRAMES, 2, intakeData, recTempDir, "temp.intake");
-    storeDoubles(NUMBER_OF_FRAMES, 2, conveyerData, recTempDir,
-                 "temp.conveyor");
+    storeDoubles(lengthOfRec, 5, baseData, recTempDir, "temp.base");
+    storeDoubles(lengthOfRec, 2, intakeData, recTempDir, "temp.intake");
+    storeDoubles(lengthOfRec, 2, conveyerData, recTempDir, "temp.conveyor");
 
     printf("Save recording? (Y/X)\n");
-
-    okapi::ControllerButton buttonX(okapi::ControllerDigital::X);
-    okapi::ControllerButton buttonY(okapi::ControllerDigital::Y);
+    pros::lcd::print(0, "Save recording? (Y/X)");
 
     while (true) {
       if (buttonY.isPressed()) {
 
-        printf("Saving...\n");
         const std::string name = getNewRecID(recDir);
+
+        printf("Saving...\n");
+        pros::lcd::print(0, "Saving as %s", name);
+        pros::Task::delay(800);
 
         createBasicMasterFile(recDir, name);
 
-        storeDoubles(NUMBER_OF_FRAMES, 5, baseData, recDir, name + ".base");
-        storeDoubles(NUMBER_OF_FRAMES, 2, intakeData, recDir, name + ".intake");
-        storeDoubles(NUMBER_OF_FRAMES, 2, conveyerData, recDir,
-                     name + ".conveyor");
+        storeDoubles(lengthOfRec, 5, baseData, recDir, name + ".base");
+        storeDoubles(lengthOfRec, 2, intakeData, recDir, name + ".intake");
+        storeDoubles(lengthOfRec, 2, conveyerData, recDir, name + ".conveyor");
         printf("Finished saving.\n");
         break;
 
       } else if (buttonX.isPressed()) {
         printf("NOT Saving Recording.\n");
+        pros::lcd::print(0, "DELETING");
+        pros::Task::delay(800);
         break;
       }
       pros::Task::delay(50);
     }
+
+    pros::lcd::print(0, "");
 
     breakMacros(used_subsystems);
   }

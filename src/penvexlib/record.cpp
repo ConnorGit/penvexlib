@@ -89,7 +89,7 @@ void createBasicMasterFile(const std::string &idirectory,
   // Write default file
   char buf[1024];
   sprintf(buf,
-          "15,%s\nLD,B,%s\nLD,I,%s\nLD,C,%s\nPP,B,%s,F\nMP,I,%s\nMP,C,%s\nWIS,"
+          "15,%s\nLD,B,%s\nLD,I,%s\nLD,C,%s\nMP,B,%s\nMP,I,%s\nMP,C,%s\nWIS,"
           "B\nSTOP,B\nWIS,I\nSTOP,I\nWIS,C\nSTOP,C\nRM,B,%s\nRM,I,%s\nRM,"
           "C,%s",
           idirectory.c_str(), baseStr, intakeStr, conveyorStr, baseStr,

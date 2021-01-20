@@ -428,7 +428,7 @@ void AsyncMeshMpPpController::stepPurePursuit(
   // Unlock before the delay to be nice to other tasks
   currentPathMutex.unlock();
   // printf("Pp\n");
-  rate->delayUntil(100_ms);
+  rate->delayUntil(10_ms);
 }
 
 int AsyncMeshMpPpController::manageMotionProfiling(
