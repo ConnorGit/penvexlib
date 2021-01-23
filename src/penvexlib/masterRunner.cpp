@@ -3,11 +3,14 @@
 namespace penvex::master {
 
 void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
-  masterFunction **masterFunctionList;
+  masterFunction **masterFunctionList = nullptr;
   int len;
   std::string dirName;
   penvex::record::readMasterFile(masterFunctionList, dirName, len, idirectory,
                                  ipathId);
+
+  if (masterFunctionList == nullptr)
+    return;
 
   resetData();
 
@@ -161,7 +164,8 @@ void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
           okapi::Point{((((masterFunctionDoubleXY *)masterFunctionList[i])->x) *
                         okapi::meter),
                        ((((masterFunctionDoubleXY *)masterFunctionList[i])->y) *
-                        okapi::meter)});
+                        okapi::meter)},
+          (((masterFunctionDoubleXY *)masterFunctionList[i])->y == -1.0));
       break;
 
     default:

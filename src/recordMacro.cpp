@@ -59,7 +59,7 @@ void recordLoop(void *) {
       baseRV[i] = baseFR->getActualVelocity();
       intakeV[i] = intake->getActualVelocity();
       conveyorV[i] = conveyor->getActualVelocity();
-      if (buttonX.isPressed()) {
+      if (buttonX.changedToPressed()) {
         lengthOfRec = (i + 1);
         break;
       }
@@ -141,7 +141,7 @@ void recordLoop(void *) {
     pros::lcd::print(0, "Save recording? (Y/X)");
 
     while (true) {
-      if (buttonY.isPressed()) {
+      if (buttonY.changedToPressed()) {
 
         const std::string name = getNewRecID(recDir);
 
@@ -157,7 +157,7 @@ void recordLoop(void *) {
         printf("Finished saving.\n");
         break;
 
-      } else if (buttonX.isPressed()) {
+      } else if (buttonX.changedToPressed()) {
         printf("NOT Saving Recording.\n");
         pros::lcd::print(0, "DELETING");
         pros::Task::delay(800);
