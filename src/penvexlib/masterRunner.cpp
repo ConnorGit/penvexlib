@@ -165,7 +165,7 @@ void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
                         okapi::meter),
                        ((((masterFunctionDoubleXY *)masterFunctionList[i])->y) *
                         okapi::meter)},
-          (((masterFunctionDoubleXY *)masterFunctionList[i])->y == -1.0));
+          (((masterFunctionDoubleXY *)masterFunctionList[i])->value == -1.0));
       break;
 
     default:

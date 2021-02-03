@@ -80,7 +80,7 @@ void recordLoop(void *) {
       baseLV[i] *= 0.00365733744; // (PI*wheelDiam(m)*gearRatio(1)/60sec))
       baseRV[i] *= 0.00365733744;
       intakeV[i] *= 0.00465479311 * 1.0481;
-      conveyorV[i] *= 0.00398982267 * 3.0; //* 5.9568944116; // hack
+      conveyorV[i] *= 0.00398982267 * 5.9568944116; // hack
     }
 
     // //////SAVE_RAW_DATA//////

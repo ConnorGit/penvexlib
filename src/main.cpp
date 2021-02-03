@@ -81,7 +81,7 @@ void initialize() {
              .withOdometry(baseScales)
              .buildOdometry();
 
-  okapi::PurePursuitConstants constants{0.7, 9.0_in, 5_in, 0.7_in};
+  okapi::PurePursuitConstants constants{1.00, 13.0_in, 5_in, 0.7_in};
 
   // NOTE: This might cause init to run out of stack space
   profileBaseController =
@@ -207,6 +207,10 @@ void autonomous() { penvex::master::runMasterFile("/data/final", "final"); }
  * task, not resume it from where it left off.
  */
 void opcontrol() {
+  base->stop();
+  profileBaseController->flipDisable(true);
+  profileIntakeController->flipDisable(true);
+  profileConveyorController->flipDisable(true);
 
   // okapi::ChassisScales baseScales(
   //     {(5570 / 2.05105), 8.63636363637, 0.1317625, (3200 / 1.9558)}, 1800);
