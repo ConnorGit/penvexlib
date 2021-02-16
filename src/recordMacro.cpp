@@ -7,7 +7,7 @@
 
 #include "main.h"
 
-using namespace penvex::macro;
+using namespace penvex;
 using namespace okapi::literals;
 
 namespace penvex::record {
@@ -168,7 +168,7 @@ void recordLoop(void *) {
 
     pros::lcd::print(0, "");
 
-    breakMacros(used_subsystems);
+    Macro::breakMacros(used_subsystems);
   }
 }
 
@@ -181,22 +181,17 @@ void recordLoop(void *) {
  * must be cleaned by annother task.
  */
 
-macroData recordMacro_data{used_subsystems,
-                           recordLoop,
-                           false,
-                           TASK_PRIORITY_DEFAULT,
-                           RECORDED_DATA_SIZE + TASK_STACK_DEPTH_DEFAULT,
-                           "Record"};
-
-/**
- * THis function will run the macro.
- */
-void runRecordMacro() { runMacro(&recordMacro_data); }
+Macro *recordMacro;
 
 /**
  * This function should be called in init this macro in initalise at the start
  * of the program
  */
-void initRecordMacro() { initMacro(&recordMacro_data); }
+void initRecordMacro() {
+  recordMacro =
+      new Macro(used_subsystems, recordLoop, false, NULL, TASK_PRIORITY_DEFAULT,
+                RECORDED_DATA_SIZE + TASK_STACK_DEPTH_DEFAULT, "Record");
+  recordMacro->init();
+}
 
 } // namespace penvex::record

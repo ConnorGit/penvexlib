@@ -3,7 +3,7 @@
 using namespace okapi::literals;
 
 // Defs:
-const unsigned int penvex::macro::numberOfSubsystems = 2;
+const unsigned int numberOfSubsystems = 5;
 
 // BASE:
 
@@ -132,8 +132,12 @@ void initialize() {
           .buildLinearMotionProfileControllerMod();
   pros::Task::delay(10);
 
+  penvex::Macro::initRunner(numberOfSubsystems);
+
   scripts::initMacroTest();
   scripts::initMacroTest2();
+
+  penvex::record::initRecordMacro();
 }
 
 /**
@@ -255,17 +259,18 @@ void opcontrol() {
 
     /////////////////////////////////////////MACRO/////////////////////////////////////////////////////////
     // Macro controll and handeling:
-    currentlyUsedMacroSubsystems = penvex::macro::getAllUsedSubsystems();
+    currentlyUsedMacroSubsystems = penvex::Macro::getAllUsedSubsystems();
 
     if (buttonUp.changedToReleased()) {
-      scripts::runMacroTest();
+      scripts::macroTest->run();
+      ;
     }
 
     if (buttonLeft.changedToReleased())
-      scripts::runMacroTest2();
+      scripts::macroTest2->run();
 
     if (buttonRight.changedToReleased())
-      penvex::macro::breakMacros(0b01);
+      penvex::Macro::breakMacros(0b01);
 
     /////////////////////////////////////////BASE/////////////////////////////////////////////////////////
     ////----------MACRO----
@@ -274,7 +279,7 @@ void opcontrol() {
           fabs(master.getAnalog(RIGHT_Y_JOY)) >= joyMacroBreakThresh ||
           fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
           fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh) {
-        penvex::macro::breakMacros(BASE);
+        penvex::Macro::breakMacros(BASE);
         base->stop();
         profileBaseController->flipDisable(true);
       }
@@ -311,7 +316,7 @@ void opcontrol() {
 
     // Acavate the record function
     if (RECORD_B.changedToReleased()) {
-      penvex::record::runRecordMacro();
+      penvex::record::recordMacro->run();
       // startRecordingVI();
     }
 

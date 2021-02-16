@@ -7,7 +7,7 @@
 
 #include "main.h"
 
-using namespace penvex::macro;
+using namespace penvex;
 using namespace okapi;
 
 namespace scripts {
@@ -15,7 +15,7 @@ namespace scripts {
 /**
  * The macro function to run.
  */
-void macroTest(void *) {
+void macroTest_func(void *) {
   printf("\nstarting macroTest");
   while (true) {
     base->turnToAngle(90_deg);
@@ -29,24 +29,22 @@ void macroTest(void *) {
 }
 
 /**
- * The identifacation for the macro which contains both the macro function to
- * run in its own task and a identifactaion for the subsystems running in it to
+ * The macro object which contains both the macro function to
+ * run in its own task and an identifactaion for the subsystems running in it to
  * allow the macro to break if a subsystem is interupted.
  *
  * If restart is set to true then all dynamicaly allocated memory in the macro
- * must be cleaned by annother task.
+ * must be cleaned.
  */
-macroData macroTest_data{0b01, macroTest, false};
-
-/**
- * This function will run the macro.
- */
-void runMacroTest() { runMacro(&macroTest_data); }
+Macro *macroTest;
 
 /**
  * This function should be called in init this macro in initalise at the start
  * of the program
  */
-void initMacroTest() { initMacro(&macroTest_data); }
+void initMacroTest() {
+  macroTest = new Macro(0b01, macroTest_func, false);
+  macroTest->init();
+}
 
 } // namespace scripts

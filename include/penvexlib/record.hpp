@@ -19,8 +19,7 @@ extern const int RECORD_TIME;    // Period of time of one recording
 extern const int MSEC_PER_FRAME; // the time between frimes in msec
 extern const int BYTES_RECORDED_PER_FRAME;
 
-extern penvex::macro::macroData recordMacro_data;
-extern void runRecordMacro();
+extern penvex::Macro *recordMacro;
 extern void initRecordMacro();
 
 /**

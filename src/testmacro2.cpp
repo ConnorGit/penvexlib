@@ -7,7 +7,7 @@
 
 #include "main.h"
 
-using namespace penvex::macro;
+using namespace penvex;
 using namespace okapi::literals;
 
 namespace scripts {
@@ -20,7 +20,7 @@ const unsigned int used_subsystems = 0b10;
 /**
  * The macro function to run.
  */
-void macroTest2(void *) {
+void macroTest2_func(void *) {
 
   printf("started macro\n");
 
@@ -54,7 +54,7 @@ void macroTest2(void *) {
   // printf("done with profile\n");
 
   // Must have this line at the end of the macro
-  endMacro(used_subsystems);
+  macroTest2->remove();
 }
 
 /**
@@ -66,17 +66,15 @@ void macroTest2(void *) {
  * must be cleaned by annother task.
  */
 
-macroData macroTest2_data{used_subsystems, macroTest2, true};
-
-/**
- * THis function will run the macro.
- */
-void runMacroTest2() { runMacro(&macroTest2_data); }
+Macro *macroTest2;
 
 /**
  * This function should be called in init this macro in initalise at the start
  * of the program
  */
-void initMacroTest2() { initMacro(&macroTest2_data); }
+void initMacroTest2() {
+  macroTest2 = new Macro(used_subsystems, macroTest2_func, true);
+  macroTest2->init();
+}
 
 } // namespace scripts

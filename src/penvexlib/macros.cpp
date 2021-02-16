@@ -6,32 +6,47 @@
 
 #include "main.h"
 #include <algorithm>
+#include <cstring>
 
-namespace penvex::macro {
+namespace penvex {
 
-/**
- * Should be invoked whenever running macros is being written to.
- */
-pros::Mutex runningMacroMutex;
+unsigned int Macro::numberOfSubsystems = 0;
+Macro **Macro::runningMacros;
+pros::Mutex Macro::runningMacroMutex;
 
-/**
- * A list containing every currently running macro and its data.
- */
-macroData *runningMacros[numberOfSubsystemsBuffer] = {nullptr, nullptr, nullptr,
-                                                      nullptr, nullptr};
+Macro::Macro(unsigned int iusedSubsystems, void (*imacroFunction)(void *),
+             bool irestartOnBreak, void *ifuncParams, std::uint32_t iprio,
+             std::uint16_t istack_depth, const char *iname)
+    : usedSubsystems(iusedSubsystems), macroFunction(imacroFunction),
+      restartOnBreak(irestartOnBreak), funcParams(ifuncParams), prio(iprio),
+      stack_depth(istack_depth), macroTask(nullptr) {
+  if (this->usedSubsystems == 0b0) {
+    std::string msg("Failed to make macro with no subsystems.");
+    printf("Failed to make macro with no subsystems.");
+    throw std::invalid_argument(msg);
+  }
+}
 
-void breakMacros(unsigned int subsystemsToBreak) {
+void Macro::initRunner(unsigned int inumberOfSubsystems) {
+  runningMacroMutex.take(TIMEOUT_MAX);
+  numberOfSubsystems = inumberOfSubsystems;
+  runningMacros = new Macro *[numberOfSubsystems];
+  for (int i = 0; i < numberOfSubsystems; i++)
+    runningMacros[i] = nullptr;
+  runningMacroMutex.give();
+}
+
+void Macro::breakMacros(unsigned int subsystemsToBreak) {
+  runningMacroMutex.take(TIMEOUT_MAX);
 
   // Bitwise & used as a mask for usedSubsustems
   for (int i = 0; i < numberOfSubsystems; i++)
     if ((runningMacros[i] != nullptr) &&
         (runningMacros[i]->usedSubsystems & subsystemsToBreak)) {
 
-      macroData *macroToBreak = runningMacros[i];
+      Macro *macroToBreak = runningMacros[i];
 
-      runningMacroMutex.take(TIMEOUT_MAX);
       runningMacros[i] = nullptr;
-      runningMacroMutex.give();
 
       macroToBreak->macroTask->suspend();
 
@@ -39,79 +54,84 @@ void breakMacros(unsigned int subsystemsToBreak) {
       if (macroToBreak->restartOnBreak)
         macroToBreak->macroTask->remove();
     }
+
+  runningMacroMutex.give();
 }
 
-void runMacro(macroData *macroToRun, void *macroFuncParams) {
-  // You cant run a macro with no subsystems
-  if (macroToRun->usedSubsystems == 0b0) {
-    printf("Failed to run macro with no subsystems.");
-    return;
-  }
+void Macro::run(void *macroFuncParams) {
+  this->funcParams = macroFuncParams;
 
   // End all macros that conflict in subsystem usage
-  breakMacros(macroToRun->usedSubsystems);
+  breakMacros(this->usedSubsystems);
   // Run the macro
-  if ((macroToRun->macroTask != nullptr) &&
-      macroToRun->macroTask->get_state() == pros::E_TASK_STATE_SUSPENDED)
-    macroToRun->macroTask->resume();
+  if ((this->macroTask != nullptr) &&
+      this->macroTask->get_state() == pros::E_TASK_STATE_SUSPENDED)
+    this->macroTask->resume();
   else
-    macroToRun->macroTask = new pros::Task(
-        macroToRun->macroFunction, macroFuncParams, macroToRun->prio,
-        macroToRun->stack_depth, macroToRun->name);
+    this->macroTask = new pros::Task(this->macroFunction, this->funcParams,
+                                     this->prio, this->stack_depth, this->name);
 
   // Add pointer to the the started macro tho the list of running macros
   runningMacroMutex.take(TIMEOUT_MAX);
   for (int i = 0; i < numberOfSubsystems; i++)
     if (runningMacros[i] == nullptr) {
-      runningMacros[i] = macroToRun;
+      runningMacros[i] = this;
       break;
     }
   runningMacroMutex.give();
 }
 
-void initMacro(macroData *macroToRun, void *macroFuncParams) {
+void Macro::init() {
+  std::uint32_t tempPrio = this->prio;
+  this->prio = TASK_PRIORITY_MIN;
 
-  std::uint32_t tempPrio = macroToRun->prio;
-  macroToRun->prio = TASK_PRIORITY_MIN;
+  this->run();
+  this->macroTask->suspend();
 
-  runMacro(macroToRun, macroFuncParams);
-  macroToRun->macroTask->suspend();
+  this->prio = tempPrio;
 
-  macroToRun->prio = tempPrio;
-
+  runningMacroMutex.take(TIMEOUT_MAX);
   for (int i = 0; i < numberOfSubsystems; i++)
-    if (runningMacros[i] == macroToRun)
+    if (runningMacros[i] == this)
       runningMacros[i] = nullptr;
+  runningMacroMutex.give();
 }
 
-void endMacro(unsigned int subsystemsToBreak) {
+void Macro::remove() {
+  if (!this->restartOnBreak)
+    printf("WARNING: Non-restart macros should never be removed from the "
+           "running macros this way.");
 
+  runningMacroMutex.take(TIMEOUT_MAX);
   // Bitwise & used as a mask for usedSubsustems
   for (int i = 0; i < numberOfSubsystems; i++)
     if ((runningMacros[i] != nullptr) &&
-        (runningMacros[i]->usedSubsystems & subsystemsToBreak)) {
+        (runningMacros[i]->usedSubsystems & this->usedSubsystems)) {
 
-      if (!runningMacros[i]->restartOnBreak)
-        printf("ERROR: Non-restart macros should never end.");
-
-      runningMacroMutex.take(TIMEOUT_MAX);
       runningMacros[i] = nullptr;
-      runningMacroMutex.give();
     }
+
+  runningMacroMutex.give();
 }
 
-macroData **getRunningMacroData(macroData *fillArr[]) {
+Macro **Macro::getRunningMacroData(Macro *fillArr[]) {
+  runningMacroMutex.take(TIMEOUT_MAX);
   for (int i = 0; i < numberOfSubsystems; i++)
     fillArr[i] = runningMacros[i];
+  runningMacroMutex.give();
   return fillArr;
 }
 
-unsigned int getAllUsedSubsystems() {
+unsigned int Macro::getAllUsedSubsystems() {
+  runningMacroMutex.take(TIMEOUT_MAX);
   unsigned int allUsedSubsystem = 0b0;
   for (int i = 0; i < numberOfSubsystems; i++)
     if (runningMacros[i] != nullptr)
       allUsedSubsystem |= runningMacros[i]->usedSubsystems;
+  runningMacroMutex.give();
   return allUsedSubsystem;
 }
 
-} // namespace penvex::macro
+unsigned int Macro::getUsedSubsystems() { return this->usedSubsystems; }
+
+} // namespace penvex

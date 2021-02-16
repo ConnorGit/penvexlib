@@ -13,12 +13,10 @@ namespace scripts {
 
 // Macros
 
-extern penvex::macro::macroData macroTest_data;
-extern void runMacroTest();
+extern penvex::Macro *macroTest;
 extern void initMacroTest();
 
-extern penvex::macro::macroData macroTest2_data;
-extern void runMacroTest2();
+extern penvex::Macro *macroTest2;
 extern void initMacroTest2();
 
 } // namespace scripts
