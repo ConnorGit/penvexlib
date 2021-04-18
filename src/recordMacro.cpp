@@ -13,10 +13,10 @@ using namespace okapi::literals;
 namespace penvex::record {
 
 // STICK THIS IN A DIFF FILE
-const int RECORD_TIME = 20000; // Period of time of one recording
+const int RECORD_TIME = 60000; // Period of time of one recording
 const int MSEC_PER_FRAME = 10; // the time between frimes in msec
 const int NUMBER_OF_FRAMES = (int)(RECORD_TIME / MSEC_PER_FRAME);
-const int BYTES_RECORDED_PER_FRAME = 48; // 6 * 8;
+const int BYTES_RECORDED_PER_FRAME = 72; // 9 * 8;
 const int RECORDED_DATA_SIZE = NUMBER_OF_FRAMES * BYTES_RECORDED_PER_FRAME / 4;
 const std::string recDir = "/data/recordings/";
 const std::string recTempDir = recDir + "temp/";
@@ -24,16 +24,14 @@ const std::string recTempDir = recDir + "temp/";
 /**
  * The identifacation of the subsystems running in this macro - must not be 0.
  */
-const unsigned int used_subsystems = 0b1000;
+const unsigned int used_subsystems = BIGDATA1;
 
 /**
  * The macro function to run.
  */
 void recordLoop(void *) {
   while (true) {
-    printf("Stared recording.\n");
-    pros::lcd::print(0, "Recording %fs remaining.",
-                     ((double)RECORD_TIME) / 1000.0);
+    printf("Stared record.\n");
 
     // resetData();
 
@@ -51,6 +49,8 @@ void recordLoop(void *) {
 
     int lengthOfRec = NUMBER_OF_FRAMES;
 
+    pros::lcd::print(0, "Recording for %.1fs", ((double)RECORD_TIME) / 1000.0);
+
     for (int i = 0; i < NUMBER_OF_FRAMES; i++) {
       okapi::OdomState currentPos = base->getState();
       baseX[i] = currentPos.x.getValue();
@@ -64,78 +64,144 @@ void recordLoop(void *) {
         break;
       }
       // printf("%f\n", conveyorV[i]);
-      if (i % 10 == 0)
-        pros::lcd::print(0, "Recording %fs remaining.",
-                         ((double)(RECORD_TIME - (i * MSEC_PER_FRAME))) /
-                             1000.0);
       timer.delayUntil(MSEC_PER_FRAME);
     }
+
     printf("Finished recording.\n");
 
     // POST PROCESSING:
 
     double dt = ((double)MSEC_PER_FRAME / 1000.0);
 
-    for (int i = 0; i < lengthOfRec; i++) {
-      baseLV[i] *= 0.00365733744; // (PI*wheelDiam(m)*gearRatio(1)/60sec))
-      baseRV[i] *= 0.00365733744;
-      intakeV[i] *= 0.00465479311 * 1.0481;
-      conveyorV[i] *= 0.00398982267 * 5.9568944116; // hack
-    }
+    double dtBaseArr[lengthOfRec];
+    std::fill_n(dtBaseArr, lengthOfRec, dt);
 
-    // //////SAVE_RAW_DATA//////
-    // // Allocate memory
-    // int bufferSize = sizeof(Segment) * lengthOfRec;
-    // std::unique_ptr<Segment, void (*)(void *)> leftTrajectory(
-    //     (Segment *)malloc(bufferSize), free);
-    // std::unique_ptr<Segment, void (*)(void *)> rightTrajectory(
-    //     (Segment *)malloc(bufferSize), free);
-    // std::unique_ptr<Segment, void (*)(void *)> baseTrajectory(
-    //     (Segment *)malloc(bufferSize), free);
-    // std::unique_ptr<Segment, void (*)(void *)> intakeTrajectory(
-    //     (Segment *)malloc(bufferSize), free);
-    // std::unique_ptr<Segment, void (*)(void *)> conveyorTrajectory(
-    //     (Segment *)malloc(bufferSize), free);
-    //
+    double dtIntakeArr[lengthOfRec];
+    std::fill_n(dtIntakeArr, lengthOfRec, dt);
+
+    double dtConveyorArr[lengthOfRec];
+    std::fill_n(dtConveyorArr, lengthOfRec, dt);
+
+    // This seems slow but I dont think it matters because I have to do this
+    // multiplacation anyway
     // for (int i = 0; i < lengthOfRec; i++) {
-    //   Segment baseLSeg = {dt, 0.0, 0.0, 0.0, baseLV[i], 0.0, 0.0, 0.0};
-    //   (leftTrajectory.get())[i] = baseLSeg;
-    //   Segment baseRSeg = {dt, 0.0, 0.0, 0.0, baseRV[i], 0.0, 0.0, 0.0};
-    //   (rightTrajectory.get())[i] = baseRSeg;
-    //   Segment baseSeg = {
-    //       dt,  baseX[i], baseY[i], 0.0, (baseRV[i] + baseLV[i]) / 2.0,
-    //       0.0, 0.0,      0.0};
-    //   (baseTrajectory.get())[i] = baseSeg;
-    //   Segment intakeSeg = {dt, 0.0, 0.0, 0.0, intakeV[i], 0.0, 0.0, 0.0};
-    //   (intakeTrajectory.get())[i] = intakeSeg;
-    //   Segment conveyorSeg = {dt, 0.0, 0.0, 0.0, conveyorV[i], 0.0, 0.0, 0.0};
-    //   (conveyorTrajectory.get())[i] = conveyorSeg;
+    //   baseLV[i] *= 0.00365733744; // (PI*wheelDiam(m)*gearRatio(1)/60sec))
+    //   baseRV[i] *= 0.00365733744;
+    //   intakeV[i] *= 0.00465479311 * 1.0481;
+    //   conveyorV[i] *= 0.00398982267 * 5.9568944116; // hack
     // }
-    //
-    // profileBaseController->takePath(leftTrajectory, rightTrajectory,
-    //                                 baseTrajectory, lengthOfRec,
-    //                                 "temp.raw");
-    // profileIntakeController->takePath(intakeTrajectory, lengthOfRec,
-    //                                   "temp.raw");
-    // profileConveyorController->takePath(conveyorTrajectory, lengthOfRec,
-    //                                     "temp.raw");
+
+    auto processLambda = [lengthOfRec, dt](double *velArr, double *dtArr,
+                                           long double scalar) {
+      int finalArrPos = 0, i = 0;
+      bool stopped = false;
+      for (; i < lengthOfRec; i++) {
+        if ((velArr[i]) == 0.0) {
+          if (!stopped) {
+            velArr[finalArrPos] = 0.0;
+            finalArrPos++;
+            stopped = true;
+          }
+        } else {
+          if (stopped) {
+            stopped = false;
+            dtArr[finalArrPos - 1] = dt * ((double)(i - finalArrPos + 1));
+          }
+
+          velArr[finalArrPos] = velArr[i] * scalar;
+          dtArr[finalArrPos] = dt;
+
+          finalArrPos++;
+        }
+      }
+      if (stopped)
+        dtArr[finalArrPos - 1] = dt * ((double)(i - finalArrPos + 1));
+      return finalArrPos;
+    };
+
+    auto processLambdaComplex =
+        [lengthOfRec, dt](double *velArrs[], int numOfVels, double *extraArrs[],
+                          int numOfExtras, double *dtArr, long double scalar) {
+          int finalArrPos = 0, i = 0, j, k;
+          bool stopped = false;
+          for (; i < lengthOfRec; i++) {
+            for (j = 0; j < numOfVels; j++) {
+              if (velArrs[j][i] != 0.0)
+                break;
+            }
+
+            if (j == numOfVels) {
+              if (!stopped) {
+                for (k = 0; k < numOfVels; k++) {
+                  velArrs[k][finalArrPos] = 0.0;
+                }
+                for (k = 0; k < numOfExtras; k++) {
+                  extraArrs[k][finalArrPos] = extraArrs[k][i];
+                }
+                finalArrPos++;
+                stopped = true;
+              }
+            } else {
+              if (stopped) {
+                stopped = false;
+                dtArr[finalArrPos - 1] = dt * ((double)(i - finalArrPos + 1));
+              }
+
+              for (k = 0; k < numOfVels; k++) {
+                velArrs[k][finalArrPos] = velArrs[k][i] * scalar;
+              }
+              for (k = 0; k < numOfExtras; k++) {
+                extraArrs[k][finalArrPos] = extraArrs[k][i];
+              }
+              dtArr[finalArrPos] = dt;
+
+              finalArrPos++;
+            }
+          }
+          if (stopped)
+            dtArr[finalArrPos - 1] = dt * ((double)(i - finalArrPos + 1));
+          return finalArrPos;
+        };
+
+    double *baseVelArrs[] = {baseLV, baseRV};
+    double *baseXYArrs[] = {baseX, baseY};
+    int baseLen = processLambdaComplex(
+        baseVelArrs, 2, baseXYArrs, 2, dtBaseArr,
+        0.00365733744); // (PI*wheelDiam(m)*gearRatio(1)/60sec))
+    int intakeLen = processLambda(intakeV, dtIntakeArr, 0.00465479311 * 1.0481);
+    int conveyorLen = processLambda(conveyorV, dtConveyorArr,
+                                    0.00398982267 * 5.9568944116); // hack
+
+    double startWait = dtBaseArr[0];
+    if (dtIntakeArr[0] < startWait)
+      startWait = dtIntakeArr[0];
+    if (dtConveyorArr[0] < startWait)
+      startWait = dtConveyorArr[0];
+    startWait -= dt;
+
+    dtBaseArr[0] -= startWait;
+    dtIntakeArr[0] -= startWait;
+    dtConveyorArr[0] -= startWait;
+
+    dtBaseArr[baseLen - 1] = dt;
+    dtIntakeArr[intakeLen - 1] = dt;
+    dtConveyorArr[conveyorLen - 1] = dt;
+
+    // printf("2 recording.\n");
 
     /////////
 
-    double dtArr[lengthOfRec];
-    std::fill_n(dtArr, lengthOfRec, dt);
+    const double *baseData[] = {dtBaseArr, baseX, baseY, baseLV, baseRV};
 
-    const double *baseData[] = {dtArr, baseX, baseY, baseLV, baseRV};
+    const double *intakeData[] = {dtIntakeArr, intakeV};
 
-    const double *intakeData[] = {dtArr, intakeV};
-
-    const double *conveyerData[] = {dtArr, conveyorV};
+    const double *conveyerData[] = {dtConveyorArr, conveyorV};
 
     // Save all the data temporarily to avoid mistake
     createBasicMasterFile(recTempDir, "temp");
-    storeDoubles(lengthOfRec, 5, baseData, recTempDir, "temp.base");
-    storeDoubles(lengthOfRec, 2, intakeData, recTempDir, "temp.intake");
-    storeDoubles(lengthOfRec, 2, conveyerData, recTempDir, "temp.conveyor");
+    storeDoubles(baseLen, 5, baseData, recTempDir, "temp.base");
+    storeDoubles(intakeLen, 2, intakeData, recTempDir, "temp.intake");
+    storeDoubles(conveyorLen, 2, conveyerData, recTempDir, "temp.conveyor");
 
     printf("Save recording? (Y/X)\n");
     pros::lcd::print(0, "Save recording? (Y/X)");
@@ -151,9 +217,9 @@ void recordLoop(void *) {
 
         createBasicMasterFile(recDir, name);
 
-        storeDoubles(lengthOfRec, 5, baseData, recDir, name + ".base");
-        storeDoubles(lengthOfRec, 2, intakeData, recDir, name + ".intake");
-        storeDoubles(lengthOfRec, 2, conveyerData, recDir, name + ".conveyor");
+        storeDoubles(baseLen, 5, baseData, recDir, name + ".base");
+        storeDoubles(intakeLen, 2, intakeData, recDir, name + ".intake");
+        storeDoubles(conveyorLen, 2, conveyerData, recDir, name + ".conveyor");
         printf("Finished saving.\n");
         break;
 

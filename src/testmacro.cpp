@@ -43,7 +43,7 @@ Macro *macroTest;
  * of the program
  */
 void initMacroTest() {
-  macroTest = new Macro(0b01, macroTest_func, false);
+  macroTest = new Macro(0b10000, macroTest_func, false);
   macroTest->init();
 }
 

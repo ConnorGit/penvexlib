@@ -14,6 +14,8 @@ std::shared_ptr<okapi::OdomChassisController> base;
 
 std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
 
+std::shared_ptr<okapi::IMU> imuZ;
+
 // INTAKE:
 
 std::shared_ptr<okapi::Motor> intakeL;
@@ -36,7 +38,53 @@ void resetData() {
   base->getModel()->resetSensors();
   intake->tarePosition();
   conveyor->tarePosition();
-  base->setState(okapi::OdomState{0.0_m, 0.0_m, 0.0_deg});
+  base->setState(okapi::OdomState{0.2032_m, 0.8636_m, 0.0_deg});
+}
+
+void intakeMoveVoltage(int voltage) {
+  int dif = (int)((2.0) * (intakeR->getPosition() - intakeL->getPosition()));
+  // I'm bad at code - the voltage bit corrects for driving backwards with XOR
+  if ((dif >= 0) == (voltage >= 0)) {
+    intakeR->moveVoltage(voltage - dif);
+    intakeL->moveVoltage(voltage);
+  } else {
+    intakeR->moveVoltage(voltage);
+    intakeL->moveVoltage(voltage + dif);
+  }
+}
+
+void intakeMoveVelocity(int vel) {
+  int dif = (int)((0.2) * (intakeR->getPosition() - intakeL->getPosition()));
+  // I'm bad at code - the vel bit corrects for driving backwards with XOR
+  if ((dif >= 0) == (vel >= 0)) {
+    intakeR->moveVelocity(vel - dif);
+    intakeL->moveVelocity(vel);
+  } else {
+    intakeR->moveVelocity(vel);
+    intakeL->moveVelocity(vel + dif);
+  }
+}
+
+double crapOdomStartOffTheta = 0.0;
+void towerResetOdom(char towerID) {
+  // Everything in meters
+  int indexNum = (int)towerID - 65;
+  double towerPosArr[9][2] = {
+      {3.49504, 3.49504}, {1.8288, 3.51155}, {0.16256, 3.49504},
+      {3.51155, 1.8288},  {1.8288, 1.8288},  {0.14605, 1.8288},
+      {3.49504, 0.16256}, {1.8288, 0.14605}, {0.16256, 0.16256}};
+  double botStopDis = 0.22;
+
+  double towerX = towerPosArr[indexNum][0];
+  double towerY = towerPosArr[indexNum][1];
+
+  double currentTheta = imuZ->getRemapped(-PI, PI) + crapOdomStartOffTheta;
+
+  double newX = towerX - (botStopDis * cos(currentTheta));
+  double newY = towerY + (botStopDis * sin(currentTheta));
+
+  base->setState(okapi::OdomState{newX * okapi::meter, newY * okapi::meter,
+                                  (-currentTheta) * okapi::radian});
 }
 
 /**
@@ -77,11 +125,11 @@ void initialize() {
                         {0.0013, 0.0003, 0.00002},  // Turn controller gains
                         {0.00135, 0.0005, 0.00002}  // Angle controller gains
                         )
-             .withClosedLoopControllerTimeUtil(5.0, 1.0, 250_ms)
+             .withClosedLoopControllerTimeUtil(2.0, 1.0, 410_ms)
              .withOdometry(baseScales)
              .buildOdometry();
 
-  okapi::PurePursuitConstants constants{1.00, 13.0_in, 5_in, 0.7_in};
+  okapi::PurePursuitConstants constants{1.00, 13.0_in, 5_in, 2.2_in};
 
   // NOTE: This might cause init to run out of stack space
   profileBaseController =
@@ -92,6 +140,10 @@ void initialize() {
           .withOdometry(base->getOdometry(), &constants)
           .buildMeshMpPpController();
   pros::Task::delay(10);
+
+  imuZ = std::make_shared<okapi::IMU>(5);
+
+  imuZ->calibrate();
 
   // INTAKE init:
 
@@ -246,7 +298,8 @@ void opcontrol() {
   // certain value
   const float joyMacroBreakThresh = 0.1;
 
-  base->getModel()->resetSensors();
+  // base->getModel()->resetSensors();
+  resetData();
 
   base->getModel()->setBrakeMode(okapi::AbstractMotor::brakeMode::coast);
 
@@ -262,15 +315,34 @@ void opcontrol() {
     currentlyUsedMacroSubsystems = penvex::Macro::getAllUsedSubsystems();
 
     if (buttonUp.changedToReleased()) {
-      scripts::macroTest->run();
-      ;
+      // okapi::OdomState cur = base->getState();
+      // printf("%f  %f  %f    %f\n", cur.x.convert(okapi::meter),
+      //        cur.y.convert(okapi::meter), cur.theta.convert(okapi::radian),
+      //        (imuZ->getRemapped(-PI, PI) + crapOdomStartOffTheta));
+      // pros::Task::delay(100);
+      // scripts::macroTest->run();
     }
 
-    if (buttonLeft.changedToReleased())
+    if (buttonLeft.changedToReleased()) {
       scripts::macroTest2->run();
+      // okapi::OdomState cur = base->getState();
+      // double currentTheta = imuZ->getRemapped(-PI, PI) +
+      // crapOdomStartOffTheta;
+      //
+      // printf("%f  %f\n",
+      //        cur.x.convert(okapi::meter) + 0.2032 * cos(currentTheta),
+      //        cur.y.convert(okapi::meter) - 0.2032 * sin(currentTheta));
+      // pros::Task::delay(100);
+    }
 
-    if (buttonRight.changedToReleased())
-      penvex::Macro::breakMacros(0b01);
+    // scripts::macroTest2->run();
+
+    if (buttonRight.changedToReleased()) {
+      // towerResetOdom('H');
+      penvex::Macro::breakMacros(BASE | INTAKE | CONVEYOR);
+      profileBaseController->flipDisable(true);
+      base->stop();
+    }
 
     /////////////////////////////////////////BASE/////////////////////////////////////////////////////////
     ////----------MACRO----
@@ -280,38 +352,50 @@ void opcontrol() {
           fabs(master.getAnalog(LEFT_X_JOY)) >= joyMacroBreakThresh ||
           fabs(master.getAnalog(RIGHT_X_JOY)) >= joyMacroBreakThresh) {
         penvex::Macro::breakMacros(BASE);
-        base->stop();
         profileBaseController->flipDisable(true);
+        base->stop();
       }
     } else {
       (std::dynamic_pointer_cast<okapi::SkidSteerModel>(base->getModel()))
           ->tank(master.getAnalog(LEFT_Y_JOY), master.getAnalog(RIGHT_Y_JOY));
     } ////----MACRO----
 
-    // if recording
-    if (currentlyUsedMacroSubsystems & 0b1000) {
+    /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
+    // intakeMoveVoltage(12000 *
+    //                   (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
 
-      /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
-      intake->moveVelocity(
-          200 * (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
-
-      /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
-      conveyor->moveVelocity(
-          600 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
-
-      //////////////////////////////////////////////MISC///////////////////////////////////////////////////
-
+    if (currentlyUsedMacroSubsystems & INTAKE) {
+      if (INTAKE_IN_B.isPressed() || INTAKE_OUT_B.isPressed()) {
+        penvex::Macro::breakMacros(INTAKE);
+        profileIntakeController->flipDisable(true);
+        intake->moveVoltage(0);
+      }
     } else {
 
-      /////////////////////////////////////////////INTAKE//////////////////////////////////////////////////
-      intake->moveVoltage(12000 *
-                          (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
+      intakeMoveVelocity(200 *
+                         (INTAKE_IN_B.isPressed() - INTAKE_OUT_B.isPressed()));
+    }
 
-      /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
-      conveyor->moveVoltage(
-          12000 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
+    /////////////////////////////////////////////CONVEYOR/////////////////////////////////////////////////
 
-      //////////////////////////////////////////////MISC///////////////////////////////////////////////////
+    if (currentlyUsedMacroSubsystems & CONVEYOR) {
+      if (CONVEYOR_UP_B.isPressed() || CONVEYOR_DWN_B.isPressed()) {
+        penvex::Macro::breakMacros(CONVEYOR);
+        profileConveyorController->flipDisable(true);
+        conveyor->moveVoltage(0);
+      }
+    } else {
+      // if recording
+      if (currentlyUsedMacroSubsystems & 0b1000) {
+
+        conveyor->moveVelocity(
+            600 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
+
+      } else {
+
+        conveyor->moveVoltage(
+            12000 * (CONVEYOR_UP_B.isPressed() - CONVEYOR_DWN_B.isPressed()));
+      }
     }
 
     // Acavate the record function

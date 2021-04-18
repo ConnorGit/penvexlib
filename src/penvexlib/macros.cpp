@@ -19,7 +19,7 @@ Macro::Macro(unsigned int iusedSubsystems, void (*imacroFunction)(void *),
              std::uint16_t istack_depth, const char *iname)
     : usedSubsystems(iusedSubsystems), macroFunction(imacroFunction),
       restartOnBreak(irestartOnBreak), funcParams(ifuncParams), prio(iprio),
-      stack_depth(istack_depth), macroTask(nullptr) {
+      stack_depth(istack_depth), name(iname), macroTask(nullptr) {
   if (this->usedSubsystems == 0b0) {
     std::string msg("Failed to make macro with no subsystems.");
     printf("Failed to make macro with no subsystems.");
@@ -68,8 +68,8 @@ void Macro::run(void *macroFuncParams) {
       this->macroTask->get_state() == pros::E_TASK_STATE_SUSPENDED)
     this->macroTask->resume();
   else
-    this->macroTask = new pros::Task(this->macroFunction, this->funcParams,
-                                     this->prio, this->stack_depth, this->name);
+    this->macroTask = new pros::Task(this->macroFunction, NULL, this->prio,
+                                     this->stack_depth, this->name);
 
   // Add pointer to the the started macro tho the list of running macros
   runningMacroMutex.take(TIMEOUT_MAX);

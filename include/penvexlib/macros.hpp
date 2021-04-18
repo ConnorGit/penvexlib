@@ -57,7 +57,7 @@ public:
    * \Param macroFuncParams pointer to the pramas given to the macro, default to
    * NULL
    */
-  void run(void *macroFuncParams = NULL);
+  void run(void *macroFuncParams = nullptr);
 
   /**
    * This should only be called at the end of a restart macro to remove it form

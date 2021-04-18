@@ -12,7 +12,7 @@ void runMasterFile(const std::string &idirectory, const std::string &ipathId) {
   if (masterFunctionList == nullptr)
     return;
 
-  resetData();
+  // resetData();
 
   // TODO: this is bad for a lot of reasons but one is that inheritance is not
   // properly implemented

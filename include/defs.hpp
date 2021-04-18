@@ -11,7 +11,12 @@
  * selective terminating should be defined in each subsystem with different
  * binary representaions. e.g. BASE = 0b0001 ARM = 0b0010
  */
-enum macroIds : unsigned int { DEFAULT = 0b1, BASE = 0b10 };
+enum macroIds : unsigned int {
+  BIGDATA1 = 0b1,
+  BASE = 0b10,
+  INTAKE = 0b100,
+  CONVEYOR = 0b1000
+};
 
 extern std::shared_ptr<okapi::Motor> baseFL;
 extern std::shared_ptr<okapi::Motor> baseFR;
@@ -35,5 +40,10 @@ extern std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod>
     profileConveyorController;
 
 extern void resetData();
+
+extern void intakeMoveVelocity(int vel);
+
+extern double crapOdomStartOffTheta;
+extern void towerResetOdom(char towerID);
 
 #endif // _DEFS_HPP_
