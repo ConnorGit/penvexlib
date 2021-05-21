@@ -406,5 +406,13 @@ void opcontrol() {
 
     // To allow for other threads to run.
     pros::Task::delay(20);
+
+    // /* Just test code I want to remember */
+    // if (fabs(y) > fabs(x))
+    //   smallerLenOnSqr = x / y;
+    // else
+    //   smallerLenOnSqr = y / x;
+    // changeJoyToSqrScalar = 0.99303 + (0.5 * smallerLenOnSqr *
+    // smallerLenOnSqr);
   }
 }

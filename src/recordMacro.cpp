@@ -13,7 +13,7 @@ using namespace okapi::literals;
 namespace penvex::record {
 
 // STICK THIS IN A DIFF FILE
-const int RECORD_TIME = 60000; // Period of time of one recording
+const int RECORD_TIME = 20000; // Period of time of one recording
 const int MSEC_PER_FRAME = 10; // the time between frimes in msec
 const int NUMBER_OF_FRAMES = (int)(RECORD_TIME / MSEC_PER_FRAME);
 const int BYTES_RECORDED_PER_FRAME = 72; // 9 * 8;
