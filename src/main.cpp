@@ -407,7 +407,7 @@ void opcontrol() {
     // To allow for other threads to run.
     pros::Task::delay(20);
 
-    // /* Just test code I want to remember */
+    // /* Squaring the joystick circle code I want to remember for x-drives */
     // if (fabs(y) > fabs(x))
     //   smallerLenOnSqr = x / y;
     // else
