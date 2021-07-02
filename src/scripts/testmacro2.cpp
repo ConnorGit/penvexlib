@@ -5,11 +5,9 @@
  * Macro Test
  */
 
-#include "defs.hpp"
 #include "main.h"
 
 using namespace penvex;
-using namespace penvex::master;
 using namespace okapi::literals;
 
 namespace scripts {
@@ -21,27 +19,21 @@ const unsigned int used_subsystems = BASE | INTAKE | CONVEYOR;
 
 std::string dirName = "/data/recordings/";
 
-void ld(masterFunctionSubsttId id, const std::string &path) {
-  switch (id) {
-  case B:
-    penvex::record::loadPath(profileBaseController, dirName, path, path);
-    break;
-  case I:
-    penvex::record::loadPath(profileIntakeController, dirName, path, path);
-    break;
-  case C:
-    penvex::record::loadPath(profileConveyorController, dirName, path, path);
-    break;
-  }
+const int autonPathCount = 4;
+std::tuple<std::string, penvex::record::subsystemPathFileData>
+    autonPaths[autonPathCount];
+
+void initAutonPathArray() {
+  autonPaths[0] = {"Rec1.base", basePDat};
+#define A1_B_AB autonPaths[0]
+  autonPaths[1] = {"Rec1.intake", intakePDat};
+#define A1_I_UP_1 autonPaths[1]
+  autonPaths[2] = {"Rec2.base", basePDat};
+#define A1_B_BC autonPaths[2]
+  autonPaths[3] = {"Rec2.intake", intakePDat};
+#define A1_I_DWN autonPaths[3]
 }
-void ldTmp() {
-  penvex::record::loadPath(profileBaseController, "/data/recordings/temp/",
-                           "temp.base", "temp.base");
-  penvex::record::loadPath(profileIntakeController, "/data/recordings/temp/",
-                           "temp.intake", "temp.intake");
-  penvex::record::loadPath(profileConveyorController, "/data/recordings/temp/",
-                           "temp.conveyor", "temp.conveyor");
-}
+
 void stopAuto() {
   while (true)
     pros::Task::delay(10000);
@@ -315,37 +307,6 @@ void macroTest2_func(void *) {
   */
 
   ////////////////////////////////////////////////////////////////////////////////////
-
-  ld(B, "Rec34.base");
-  ld(I, "Rec34.intake");
-  ld(C, "Rec34.conveyor");
-
-  // ldTmp();
-
-  profileBaseController->setTarget(
-      "Rec34.base", okapi::AsyncMeshMpPpController::Mp, false, false);
-  profileBaseController->flipDisable(false);
-
-  profileIntakeController->setTarget("Rec34.intake");
-  profileIntakeController->flipDisable(false);
-
-  profileConveyorController->setTarget("Rec34.conveyor");
-  profileConveyorController->flipDisable(false);
-
-  profileBaseController->waitUntilSettled();
-
-  profileIntakeController->waitUntilSettled();
-
-  profileConveyorController->waitUntilSettled();
-
-  profileBaseController->removePath("Rec34.base");
-
-  profileIntakeController->removePath("Rec34.intake");
-
-  profileConveyorController->removePath("Rec34.conveyor");
-
-  profileBaseController->flipDisable(true);
-  base->stop();
 
   // penvex::master::runMasterFile("/data/recordings/temp/", "temp");
 

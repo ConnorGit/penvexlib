@@ -57,21 +57,19 @@ bool fileExists(const std::string &ifileName) {
 std::string getNewRecID(const std::string &idirectory) {
   int recNumber = 1;
   std::string testName = "Rec" + std::to_string(recNumber);
-  std::string testPath = makeFilePath(idirectory, testName + "._master.csv");
+  std::string testPath = makeFilePath(idirectory, testName + "._master.txt");
 
   while (fileExists(testPath)) {
     recNumber++;
     testName = "Rec" + std::to_string(recNumber);
-    testPath = makeFilePath(idirectory, testName + "._master.csv");
+    testPath = makeFilePath(idirectory, testName + "._master.txt");
   }
   return testName;
 }
 
-// TODO: Kill with fire as soon as possible
-using namespace penvex::master;
 void createBasicMasterFile(const std::string &idirectory,
                            const std::string &ipathId) {
-  std::string filePath = makeFilePath(idirectory, ipathId + "._master.csv");
+  std::string filePath = makeFilePath(idirectory, ipathId + "._master.txt");
   FILE *currentFile = fopen(filePath.c_str(), "w");
 
   // Make sure we can open the file successfully
@@ -82,27 +80,65 @@ void createBasicMasterFile(const std::string &idirectory,
     return;
   }
 
-  const char *baseStr = (ipathId + ".base").c_str();
-  const char *intakeStr = (ipathId + ".intake").c_str();
-  const char *conveyorStr = (ipathId + ".conveyor").c_str();
-
   // Write default file
   char buf[1024];
-  sprintf(buf,
-          "15,%s\nLD,B,%s\nLD,I,%s\nLD,C,%s\nMP,B,%s\nMP,I,%s\nMP,C,%s\nWIS,"
-          "B\nSTOP,B\nWIS,I\nSTOP,I\nWIS,C\nSTOP,C\nRM,B,%s\nRM,I,%s\nRM,"
-          "C,%s",
-          idirectory.c_str(), baseStr, intakeStr, conveyorStr, baseStr,
-          intakeStr, conveyorStr, baseStr, intakeStr, conveyorStr);
+  sprintf(buf, "Recording: %s\nRec Dir: %s", ipathId.c_str(),
+          idirectory.c_str());
   fputs(buf, currentFile);
 
   fclose(currentFile);
 }
 
-void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
-                    int &fillLen, const std::string &idirectory,
-                    const std::string &ipathId) {
-  std::string filePath = makeFilePath(idirectory, ipathId + "._master.csv");
+// Not inplemented currently
+void readMasterFile(const std::string &idirectory, const std::string &ipathId) {
+}
+
+void storeDoubles(const int length, const int numberOfBytesPerFrame,
+                  const double *arrays[], const std::string &idirectory,
+                  const std::string &ifileName) {
+  std::string filePath = makeFilePath(idirectory, ifileName);
+  FILE *currentFile = fopen(filePath.c_str(), "w");
+
+  if (length < 1) {
+    printf("RecordIO: Invalid length writing %s.", ifileName.c_str());
+    return;
+  }
+
+  // 8 bytes in a double
+  if ((numberOfBytesPerFrame < 0) || (numberOfBytesPerFrame % 8 != 0)) {
+    printf("RecordIO: Invalid numberOfBytesPerFrame writing %s.",
+           ifileName.c_str());
+    return;
+  }
+
+  // Make sure we can open the file successfully
+  if (currentFile == NULL) {
+    printf("RecordIO: Couldn't open file ");
+    printf("%s", filePath.c_str());
+    printf(" for writing\n");
+    return;
+  }
+
+  char buf_1[4];
+  intToBytes(length, buf_1);
+  fwrite(buf_1, 1, 4, currentFile);
+
+  char buf[8];
+  int i, j;
+  for (i = 0; i < length; i++) {
+    for (j = 0; j < (numberOfBytesPerFrame / 8); j++) {
+      doubleToBytes(arrays[j][i], buf);
+      fwrite(buf, 1, 8, currentFile);
+    }
+  }
+
+  fclose(currentFile);
+}
+
+void loadPath(std::shared_ptr<okapi::AsyncMeshMpPpController> &controller,
+              const std::string &idirectory, const std::string &ifileName,
+              const std::string &ipathId) {
+  std::string filePath = makeFilePath(idirectory, ifileName);
   FILE *currentFile = fopen(filePath.c_str(), "r");
 
   // Make sure we can open the file successfully
@@ -113,159 +149,110 @@ void readMasterFile(masterFunction **&masterFunctionList, std::string &fillDir,
     return;
   }
 
-  // NOTE: Not threadsafe
+  char buf_1[4];
+  fread(buf_1, 1, 4, currentFile);
+  int length = bytesToInt(buf_1);
 
-  char line[1024];
-  char *strData;
+  std::unique_ptr<Segment, void (*)(void *)> leftTrajectory(
+      (Segment *)malloc(sizeof(Segment) * length), free);
+  std::unique_ptr<Segment, void (*)(void *)> rightTrajectory(
+      (Segment *)malloc(sizeof(Segment) * length), free);
+  std::unique_ptr<Segment, void (*)(void *)> baseTrajectory(
+      (Segment *)malloc(sizeof(Segment) * length), free);
 
-  fgets(line, 1024, currentFile);
+  char buf[8];
 
-  strData = strtok(line, ",\n");
-  int length = std::stoi(strData, NULL);
-  strData = strtok(NULL, ",\n");
-  fillDir = std::string(strData);
+  int i;
+  for (i = 0; i < length; i++) {
+    fread(buf, 1, 8, currentFile);
+    double dt = bytesToDouble(buf);
 
-  // NOTE: Make sure to free all the masterfunctions after use
-  masterFunctionList =
-      (masterFunction **)malloc(sizeof(masterFunction *) * length);
+    fread(buf, 1, 8, currentFile);
+    double x = bytesToDouble(buf);
 
-  auto readMasterFunctionSubsttId =
-      [](char SubstIdChar) -> masterFunctionSubsttId {
-    if (SubstIdChar == 'B')
-      return B;
-    if (SubstIdChar == 'I')
-      return I;
-    if (SubstIdChar == 'C')
-      return C;
-    printf("ERROR reading subst id.\n");
-    return B;
-  };
+    fread(buf, 1, 8, currentFile);
+    double y = bytesToDouble(buf);
 
-  int seg_n = 0;
-  while (fgets(line, 1024, currentFile)) {
+    fread(buf, 1, 8, currentFile);
+    double velL = bytesToDouble(buf);
 
-    strData = strtok(line, ",\n");
-    masterFunctionId id;
-    if (!strcmp(strData, "LD"))
-      id = LD;
-    if (!strcmp(strData, "RM"))
-      id = RM;
-    if (!strcmp(strData, "MP"))
-      id = MP;
-    if (!strcmp(strData, "PP"))
-      id = PP;
-    if (!strcmp(strData, "MPPP"))
-      id = MPPP;
-    if (!strcmp(strData, "TRN"))
-      id = TRN;
-    if (!strcmp(strData, "DRV"))
-      id = DRV;
-    if (!strcmp(strData, "STOP"))
-      id = STOP;
-    if (!strcmp(strData, "WIS"))
-      id = WIS;
-    if (!strcmp(strData, "WD"))
-      id = WD;
-    if (!strcmp(strData, "DTP"))
-      id = DTP;
+    fread(buf, 1, 8, currentFile);
+    double velR = bytesToDouble(buf);
 
-    switch (id) {
-    case LD:
-    case RM:
-    case MP: {
-      masterFunctionSubstPathId *tempFunc = new masterFunctionSubstPathId();
-      tempFunc->funcId = id;
-      strData = strtok(NULL, ",\n");
-      tempFunc->substId = readMasterFunctionSubsttId(strData[0]);
-      std::string pathid(strtok(NULL, ",\n"));
-      tempFunc->pathId = pathid;
-      // printf("%d, %d, %s\n", (int)tempFunc->funcId, (int)tempFunc->substId,
-      //        tempFunc->pathId.c_str());
-      (masterFunctionList)[seg_n] = tempFunc;
-    } break;
-
-    case PP:
-    case MPPP: {
-      masterFunctionSubstPathIdRev *tempFunc =
-          new masterFunctionSubstPathIdRev();
-      tempFunc->funcId = id;
-      strData = strtok(NULL, ",\n");
-      tempFunc->substId = readMasterFunctionSubsttId(strData[0]);
-      std::string pathid(strtok(NULL, ",\n"));
-      tempFunc->pathId = pathid;
-      strData = strtok(NULL, ",\n");
-      if (strData[0] == 'T')
-        tempFunc->rev = true;
-      else
-        tempFunc->rev = false;
-      // printf("%d, %d, %s, %d\n", (int)tempFunc->funcId,
-      // (int)tempFunc->substId,
-      //        tempFunc->pathId.c_str(), (int)tempFunc->rev);
-      (masterFunctionList)[seg_n] = tempFunc;
-    } break;
-
-    case TRN:
-    case DRV: {
-      masterFunctionDouble *tempFunc = new masterFunctionDouble();
-      tempFunc->funcId = id;
-      strData = strtok(NULL, ",\n");
-      tempFunc->value = strtod(strData, NULL);
-      // printf("%d, %f\n", (int)tempFunc->funcId, tempFunc->value);
-      (masterFunctionList)[seg_n] = tempFunc;
-    } break;
-
-    case STOP:
-    case WIS: {
-      masterFunctionSubst *tempFunc = new masterFunctionSubst();
-      tempFunc->funcId = id;
-      strData = strtok(NULL, ",\n");
-      tempFunc->substId = readMasterFunctionSubsttId(strData[0]);
-      // printf("%d, %d\n", (int)tempFunc->funcId, (int)tempFunc->substId);
-      (masterFunctionList)[seg_n] = tempFunc;
-    } break;
-
-    case WD:
-    case DTP: {
-      masterFunctionDoubleXY *tempFunc = new masterFunctionDoubleXY();
-      tempFunc->funcId = id;
-      strData = strtok(NULL, ",\n");
-      tempFunc->value = strtod(strData, NULL);
-      strData = strtok(NULL, ",\n");
-      tempFunc->x = strtod(strData, NULL);
-      strData = strtok(NULL, ",\n");
-      tempFunc->y = strtod(strData, NULL);
-      // printf("%d, %f, %f, %f\n", (int)tempFunc->funcId, tempFunc->value,
-      //        tempFunc->x, tempFunc->y);
-      (masterFunctionList)[seg_n] = tempFunc;
-    } break;
-
-    default:
-      printf("ERROR reading masterfile.\n");
-      length--;
-      break;
-    }
-
-    seg_n++;
+    Segment baseLSeg = {dt, 0.0, 0.0, 0.0, velL, 0.0, 0.0, 0.0};
+    (leftTrajectory.get())[i] = baseLSeg;
+    Segment baseRSeg = {dt, 0.0, 0.0, 0.0, velR, 0.0, 0.0, 0.0};
+    (rightTrajectory.get())[i] = baseRSeg;
+    Segment baseSeg = {dt, x, y, 0.0, (velR + velL) * 0.5, 0.0, 0.0, 0.0};
+    (baseTrajectory.get())[i] = baseSeg;
   }
 
-  fillLen = length;
+  fclose(currentFile);
+
+  // Give path to controller
+  controller->takePath(leftTrajectory, rightTrajectory, baseTrajectory, length,
+                       ipathId);
+}
+
+void loadPath(
+    std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod> &controller,
+    const std::string &idirectory, const std::string &ifileName,
+    const std::string &ipathId) {
+  std::string filePath = makeFilePath(idirectory, ifileName);
+  FILE *currentFile = fopen(filePath.c_str(), "r");
+
+  // Make sure we can open the file successfully
+  if (currentFile == NULL) {
+    printf("RecordIO: Couldn't open file ");
+    printf("%s", filePath.c_str());
+    printf(" for reading\n");
+    return;
+  }
+
+  char buf_1[4];
+  fread(buf_1, 1, 4, currentFile);
+  int length = bytesToInt(buf_1);
+
+  std::unique_ptr<Segment, void (*)(void *)> trajectory(
+      (Segment *)malloc(sizeof(Segment) * length), free);
+
+  char buf[8];
+
+  int i;
+  for (i = 0; i < length; i++) {
+    fread(buf, 1, 8, currentFile);
+    double dt = bytesToDouble(buf);
+
+    fread(buf, 1, 8, currentFile);
+    double vel = bytesToDouble(buf);
+
+    Segment seg = {dt, 0.0, 0.0, 0.0, vel, 0.0, 0.0, 0.0};
+    (trajectory.get())[i] = seg;
+  }
 
   fclose(currentFile);
-} // namespace penvex::record
 
-void storeDoubles(const int length, const int numberOfValuesPerLine,
-                  const double *arrays[], const std::string &idirectory,
-                  const std::string &ifileName) {
+  // Give path to controller
+  controller->takePath(trajectory, length, ipathId);
+}
+
+// csv reads and Writes
+
+void storeDoubles_csv(const int length, const int numberOfBytesPerFrame,
+                      const double *arrays[], const std::string &idirectory,
+                      const std::string &ifileName) {
   std::string filePath = makeFilePath(idirectory, ifileName + ".csv");
   FILE *currentFile = fopen(filePath.c_str(), "w");
 
   if (length < 1) {
-    printf("RecordIO: Invalid length.");
+    printf("RecordIO: Invalid length writing %s.", ifileName.c_str());
     return;
   }
 
-  if (numberOfValuesPerLine < 1) {
-    printf("RecordIO: Invalid numberOfValuesPerLine.");
+  // 8 bytes in a double
+  if ((numberOfBytesPerFrame < 0) || (numberOfBytesPerFrame % 8 != 0)) {
+    printf("RecordIO: Invalid numberOfBytesPerFrame writing %s.",
+           ifileName.c_str());
     return;
   }
 
@@ -281,12 +268,12 @@ void storeDoubles(const int length, const int numberOfValuesPerLine,
   sprintf(buf1, "%d\n", length);
   fputs(buf1, currentFile);
 
-  const int bufLen = numberOfValuesPerLine * 25 + 1;
+  const int bufLen = (numberOfBytesPerFrame / 8) * 25 + 1;
   for (int i = 0; i < length; i++) {
     char buf[bufLen];
     int strLen = 0;
     strLen += sprintf(buf, "%f", arrays[0][i]);
-    for (int j = 1; j < numberOfValuesPerLine; j++)
+    for (int j = 1; j < (numberOfBytesPerFrame / 8); j++)
       strLen += sprintf(buf + strLen, ",%f", arrays[j][i]);
     strLen += sprintf(buf + strLen, "\n");
 
@@ -296,9 +283,9 @@ void storeDoubles(const int length, const int numberOfValuesPerLine,
   fclose(currentFile);
 }
 
-void loadPath(std::shared_ptr<okapi::AsyncMeshMpPpController> &controller,
-              const std::string &idirectory, const std::string &ifileName,
-              const std::string &ipathId) {
+void loadPath_csv(std::shared_ptr<okapi::AsyncMeshMpPpController> &controller,
+                  const std::string &idirectory, const std::string &ifileName,
+                  const std::string &ipathId) {
   std::string filePath = makeFilePath(idirectory, ifileName + ".csv");
   FILE *currentFile = fopen(filePath.c_str(), "r");
 
@@ -363,7 +350,7 @@ void loadPath(std::shared_ptr<okapi::AsyncMeshMpPpController> &controller,
                        ipathId);
 }
 
-void loadPath(
+void loadPath_csv(
     std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod> &controller,
     const std::string &idirectory, const std::string &ifileName,
     const std::string &ipathId) {

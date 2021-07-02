@@ -5,7 +5,30 @@ using namespace okapi::literals;
 // Defs:
 const unsigned int numberOfSubsystems = 5;
 
+const penvex::AutonData penvex::Autons[] = {
+    {"Auton1", scripts::auton1, scripts::auton1Init, scripts::auton1FreeDat},
+    {"Auton2", scripts::defaultAuton, scripts::defaultAutonInit,
+     scripts::defaultAutonFreeDat},
+    {"Auton3", scripts::defaultAuton, scripts::defaultAutonInit,
+     scripts::defaultAutonFreeDat},
+    {"Auton4", scripts::defaultAuton, scripts::defaultAutonInit,
+     scripts::defaultAutonFreeDat},
+    {"Auton5", scripts::defaultAuton, scripts::defaultAutonInit,
+     scripts::defaultAutonFreeDat},
+    {"Auton6", scripts::defaultAuton, scripts::defaultAutonInit,
+     scripts::defaultAutonFreeDat}};
+const unsigned char penvex::NUMBER_OF_AUTONS = 6;
+
+// The side the robot starts on RED, of BLUE
+penvex::fieldSides penvex::autonSide = penvex::BLUE;
+// A pointer to the selected auton function
+void (*penvex::autonFunction)(void) = scripts::defaultAuton;
+void (*penvex::autonInitFunction)(void) = scripts::defaultAutonInit;
+void (*penvex::autonFreeDatFunction)(void) = scripts::defaultAutonFreeDat;
+
 // BASE:
+
+penvex::record::subsystemPathFileData basePDat;
 
 std::shared_ptr<okapi::Motor> baseFL;
 std::shared_ptr<okapi::Motor> baseFR;
@@ -16,7 +39,15 @@ std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
 
 std::shared_ptr<okapi::IMU> imuZ;
 
+void loadProfileBase(const std::string &idirectory,
+                     const std::string &ifileName, const std::string &ipathId) {
+  penvex::record::loadPath(profileBaseController, idirectory, ifileName,
+                           ipathId);
+}
+
 // INTAKE:
+
+penvex::record::subsystemPathFileData intakePDat;
 
 std::shared_ptr<okapi::Motor> intakeL;
 std::shared_ptr<okapi::Motor> intakeR;
@@ -24,6 +55,13 @@ std::shared_ptr<okapi::MotorGroup> intake;
 
 std::shared_ptr<okapi::AsyncLinearMotionProfileControllerMod>
     profileIntakeController;
+
+void loadProfileIntake(const std::string &idirectory,
+                       const std::string &ifileName,
+                       const std::string &ipathId) {
+  penvex::record::loadPath(profileIntakeController, idirectory, ifileName,
+                           ipathId);
+}
 
 // CONVEYOR:
 
@@ -103,6 +141,10 @@ void initialize() {
 
   // BASE init:
 
+  basePDat = {.extension = ".base",
+              .bytesPerFrame = 5 * 8, // 8 bytes in a double
+              .loadFunction = loadProfileBase};
+
   baseFL = std::make_shared<okapi::Motor>(-19);
   baseFR = std::make_shared<okapi::Motor>(17);
 
@@ -146,6 +188,10 @@ void initialize() {
   imuZ->calibrate();
 
   // INTAKE init:
+
+  intakePDat = {.extension = ".intake",
+                .bytesPerFrame = 2 * 8, // 8 bytes in a double
+                .loadFunction = loadProfileIntake};
 
   intakeL = std::make_shared<okapi::Motor>(10);
   intakeR = std::make_shared<okapi::Motor>(-15);
@@ -221,7 +267,7 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() { penvex::master::runMasterFile("/data/final", "final"); }
+void autonomous() {}
 
 /**
  * Configuration for the buttons of the robot with the standard syntax:

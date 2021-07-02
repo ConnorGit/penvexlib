@@ -13,10 +13,14 @@
  */
 enum macroIds : unsigned int {
   BIGDATA1 = 0b1,
-  BASE = 0b10,
-  INTAKE = 0b100,
-  CONVEYOR = 0b1000
+  LCD = 0b10,
+  BASE = 0b100,
+  INTAKE = 0b1000,
+  CONVEYOR = 0b10000
 };
+
+// Needed for stpring recorded paths.
+extern penvex::record::subsystemPathFileData basePDat, intakePDat;
 
 extern std::shared_ptr<okapi::Motor> baseFL;
 extern std::shared_ptr<okapi::Motor> baseFR;

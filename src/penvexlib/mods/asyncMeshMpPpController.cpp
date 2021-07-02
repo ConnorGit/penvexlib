@@ -169,6 +169,7 @@ bool AsyncMeshMpPpController::removePath(const std::string &ipathId) {
 
   auto oldPath = paths.find(ipathId);
   if (oldPath != paths.end()) {
+    LOG_INFO("AsyncMeshMpPpController: Removing path " + ipathId);
     paths.erase(ipathId);
   }
 

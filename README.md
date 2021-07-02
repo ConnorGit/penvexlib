@@ -8,13 +8,11 @@ This is a temp readme just used to keep track of the todo when initially buildin
 
 - [ ] Odom Sensor fusion
 - [ ] Logging
-- [ ] Inheritance for controllers
+- [ ] Inheritance for controllers - one can dream
 - [x] Make macros a class
-- [ ] Make master runner general
 - [ ] Make rec general
-- [ ] Add Auton selector
+- [x] Add Auton selector
 - [ ] Add all the little fixes from previous programs
-- [ ] Get better control over pid loops
 
 ### LINKS:
 

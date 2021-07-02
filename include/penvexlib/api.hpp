@@ -14,8 +14,8 @@
 #include "penvexlib/mods/asyncMeshMpPpController.hpp"
 #include "penvexlib/mods/asyncMeshMpPpControllerBuilder.hpp"
 
-#include "penvexlib/macros.hpp"
-#include "penvexlib/masterRunner.hpp"
-#include "penvexlib/record.hpp"
+#include "penvexlib/core/autonSelector.hpp"
+#include "penvexlib/core/macros.hpp"
+#include "penvexlib/core/record.hpp"
 
 #endif

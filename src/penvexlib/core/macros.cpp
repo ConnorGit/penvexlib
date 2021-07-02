@@ -21,9 +21,8 @@ Macro::Macro(unsigned int iusedSubsystems, void (*imacroFunction)(void *),
       restartOnBreak(irestartOnBreak), funcParams(ifuncParams), prio(iprio),
       stack_depth(istack_depth), name(iname), macroTask(nullptr) {
   if (this->usedSubsystems == 0b0) {
-    std::string msg("Failed to make macro with no subsystems.");
     printf("Failed to make macro with no subsystems.");
-    throw std::invalid_argument(msg);
+    throw std::invalid_argument("Failed to make macro with no subsystems.");
   }
 }
 

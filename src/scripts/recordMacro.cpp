@@ -16,7 +16,7 @@ namespace penvex::record {
 const int RECORD_TIME = 20000; // Period of time of one recording
 const int MSEC_PER_FRAME = 10; // the time between frimes in msec
 const int NUMBER_OF_FRAMES = (int)(RECORD_TIME / MSEC_PER_FRAME);
-const int BYTES_RECORDED_PER_FRAME = 72; // 9 * 8;
+const int BYTES_RECORDED_PER_FRAME = 40; // 5 * 8;
 const int RECORDED_DATA_SIZE = NUMBER_OF_FRAMES * BYTES_RECORDED_PER_FRAME / 4;
 const std::string recDir = "/data/recordings/";
 const std::string recTempDir = recDir + "temp/";
@@ -43,7 +43,6 @@ void recordLoop(void *) {
     double baseLV[NUMBER_OF_FRAMES];
     double baseRV[NUMBER_OF_FRAMES];
     double intakeV[NUMBER_OF_FRAMES];
-    double conveyorV[NUMBER_OF_FRAMES];
 
     okapi::Rate timer;
 
@@ -58,7 +57,6 @@ void recordLoop(void *) {
       baseLV[i] = baseFL->getActualVelocity();
       baseRV[i] = baseFR->getActualVelocity();
       intakeV[i] = intake->getActualVelocity();
-      conveyorV[i] = conveyor->getActualVelocity();
       if (buttonX.changedToPressed()) {
         lengthOfRec = (i + 1);
         break;
@@ -79,16 +77,12 @@ void recordLoop(void *) {
     double dtIntakeArr[lengthOfRec];
     std::fill_n(dtIntakeArr, lengthOfRec, dt);
 
-    double dtConveyorArr[lengthOfRec];
-    std::fill_n(dtConveyorArr, lengthOfRec, dt);
-
     // This seems slow but I dont think it matters because I have to do this
     // multiplacation anyway
     // for (int i = 0; i < lengthOfRec; i++) {
     //   baseLV[i] *= 0.00365733744; // (PI*wheelDiam(m)*gearRatio(1)/60sec))
     //   baseRV[i] *= 0.00365733744;
     //   intakeV[i] *= 0.00465479311 * 1.0481;
-    //   conveyorV[i] *= 0.00398982267 * 5.9568944116; // hack
     // }
 
     auto processLambda = [lengthOfRec, dt](double *velArr, double *dtArr,
@@ -169,23 +163,17 @@ void recordLoop(void *) {
         baseVelArrs, 2, baseXYArrs, 2, dtBaseArr,
         0.00365733744); // (PI*wheelDiam(m)*gearRatio(1)/60sec))
     int intakeLen = processLambda(intakeV, dtIntakeArr, 0.00465479311 * 1.0481);
-    int conveyorLen = processLambda(conveyorV, dtConveyorArr,
-                                    0.00398982267 * 5.9568944116); // hack
 
     double startWait = dtBaseArr[0];
     if (dtIntakeArr[0] < startWait)
       startWait = dtIntakeArr[0];
-    if (dtConveyorArr[0] < startWait)
-      startWait = dtConveyorArr[0];
     startWait -= dt;
 
     dtBaseArr[0] -= startWait;
     dtIntakeArr[0] -= startWait;
-    dtConveyorArr[0] -= startWait;
 
     dtBaseArr[baseLen - 1] = dt;
     dtIntakeArr[intakeLen - 1] = dt;
-    dtConveyorArr[conveyorLen - 1] = dt;
 
     // printf("2 recording.\n");
 
@@ -195,13 +183,12 @@ void recordLoop(void *) {
 
     const double *intakeData[] = {dtIntakeArr, intakeV};
 
-    const double *conveyerData[] = {dtConveyorArr, conveyorV};
-
     // Save all the data temporarily to avoid mistake
     createBasicMasterFile(recTempDir, "temp");
-    storeDoubles(baseLen, 5, baseData, recTempDir, "temp.base");
-    storeDoubles(intakeLen, 2, intakeData, recTempDir, "temp.intake");
-    storeDoubles(conveyorLen, 2, conveyerData, recTempDir, "temp.conveyor");
+    storeDoubles(baseLen, basePDat.bytesPerFrame, baseData, recTempDir,
+                 "temp" + basePDat.extension);
+    storeDoubles(intakeLen, intakePDat.bytesPerFrame, intakeData, recTempDir,
+                 "temp" + intakePDat.extension);
 
     printf("Save recording? (Y/X)\n");
     pros::lcd::print(0, "Save recording? (Y/X)");
@@ -217,9 +204,11 @@ void recordLoop(void *) {
 
         createBasicMasterFile(recDir, name);
 
-        storeDoubles(baseLen, 5, baseData, recDir, name + ".base");
-        storeDoubles(intakeLen, 2, intakeData, recDir, name + ".intake");
-        storeDoubles(conveyorLen, 2, conveyerData, recDir, name + ".conveyor");
+        storeDoubles(baseLen, basePDat.bytesPerFrame, baseData, recDir,
+                     name + basePDat.extension);
+        storeDoubles(intakeLen, intakePDat.bytesPerFrame, intakeData, recDir,
+                     name + intakePDat.extension);
+
         printf("Finished saving.\n");
         break;
 

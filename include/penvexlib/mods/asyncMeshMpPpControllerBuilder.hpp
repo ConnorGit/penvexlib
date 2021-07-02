@@ -15,7 +15,7 @@
 #include "okapi/impl/device/motor/motorGroup.hpp"
 #include "okapi/impl/util/timeUtilFactory.hpp"
 
-#include "penvexlib/mods//asyncLinearMotionProfileControllerMod.hpp"
+#include "penvexlib/mods/asyncLinearMotionProfileControllerMod.hpp"
 #include "penvexlib/mods/asyncMeshMpPpController.hpp"
 
 namespace okapi {
