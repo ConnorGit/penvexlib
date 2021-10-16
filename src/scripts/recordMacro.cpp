@@ -28,6 +28,7 @@ const unsigned int used_subsystems = BIGDATA1;
 
 /**
  * The macro function to run.
+ * NOTE: Do not init heap memory unless you have some way of removing it here
  */
 void recordLoop(void *) {
   while (true) {
@@ -185,10 +186,8 @@ void recordLoop(void *) {
 
     // Save all the data temporarily to avoid mistake
     createBasicMasterFile(recTempDir, "temp");
-    storeDoubles(baseLen, basePDat.bytesPerFrame, baseData, recTempDir,
-                 "temp" + basePDat.extension);
-    storeDoubles(intakeLen, intakePDat.bytesPerFrame, intakeData, recTempDir,
-                 "temp" + intakePDat.extension);
+    storeDoubles(baseLen, 5 * 8, baseData, recTempDir, "temp.base");
+    storeDoubles(intakeLen, 2 * 8, intakeData, recTempDir, "temp.intake");
 
     printf("Save recording? (Y/X)\n");
     pros::lcd::print(0, "Save recording? (Y/X)");
@@ -204,10 +203,10 @@ void recordLoop(void *) {
 
         createBasicMasterFile(recDir, name);
 
-        storeDoubles(baseLen, basePDat.bytesPerFrame, baseData, recDir,
-                     name + basePDat.extension);
-        storeDoubles(intakeLen, intakePDat.bytesPerFrame, intakeData, recDir,
-                     name + intakePDat.extension);
+        // Could also print out all the data to the new wireless terminal
+
+        storeDoubles(baseLen, 5 * 8, baseData, recDir, name + ".base");
+        storeDoubles(intakeLen, 2 * 8, intakeData, recDir, name + ".intake");
 
         printf("Finished saving.\n");
         break;

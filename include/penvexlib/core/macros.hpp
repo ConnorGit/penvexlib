@@ -70,6 +70,22 @@ public:
    */
   unsigned int getUsedSubsystems();
 
+  /**
+   * Gets the current priority of the macro task
+   */
+  std::uint32_t getPriority();
+
+  /**
+   * Resets the macro's task priority to the priority specified when the macro
+   * was first created
+   */
+  void setPriority();
+
+  /**
+   * Sets the macro's task's current priority to the prio
+   */
+  void setPriority(std::uint32_t prio);
+
 private:
   /**
    * The count of subsystems the macro involves - to avoid competition and allow

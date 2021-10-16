@@ -10,12 +10,12 @@
 using namespace penvex;
 using namespace okapi;
 
-namespace scripts {
+namespace scripts::testMacro {
 
 /**
  * The macro function to run.
  */
-void macroTest_func(void *) {
+void macro_func(void *) {
   printf("\nstarting macroTest");
   while (true) {
     base->turnToAngle(90_deg);
@@ -36,15 +36,25 @@ void macroTest_func(void *) {
  * If restart is set to true then all dynamicaly allocated memory in the macro
  * must be cleaned.
  */
-Macro *macroTest;
+Macro *macro;
 
 /**
  * This function should be called in init this macro in initalise at the start
  * of the program
  */
-void initMacroTest() {
-  macroTest = new Macro(0b10000, macroTest_func, false);
-  macroTest->init();
+void init() {
+  macro = new Macro(0b10000, macro_func, false);
+  macro->init();
 }
 
-} // namespace scripts
+/**
+ * Begin the macro's execution
+ */
+void run() { macro->run(); }
+
+/**
+ * Remove the marco from existing macros and free its data
+ */
+void remove() { macro->remove(); }
+
+} // namespace scripts::testMacro

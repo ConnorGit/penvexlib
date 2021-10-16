@@ -20,15 +20,16 @@ const penvex::AutonData penvex::Autons[] = {
 const unsigned char penvex::NUMBER_OF_AUTONS = 6;
 
 // The side the robot starts on RED, of BLUE
-penvex::fieldSides penvex::autonSide = penvex::BLUE;
+penvex::fieldSides penvex::autonSide = penvex::BLUE; // Default Blue
+
 // A pointer to the selected auton function
 void (*penvex::autonFunction)(void) = scripts::defaultAuton;
+// NOTE: For testing you can check to see if this is set to see of auto selector
+// finished init if you are using a temporaty default auto
 void (*penvex::autonInitFunction)(void) = scripts::defaultAutonInit;
 void (*penvex::autonFreeDatFunction)(void) = scripts::defaultAutonFreeDat;
 
 // BASE:
-
-penvex::record::subsystemPathFileData basePDat;
 
 std::shared_ptr<okapi::Motor> baseFL;
 std::shared_ptr<okapi::Motor> baseFR;
@@ -39,6 +40,8 @@ std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
 
 std::shared_ptr<okapi::IMU> imuZ;
 
+std::shared_ptr<okapi::IMU> imuY; // Pitch
+
 void loadProfileBase(const std::string &idirectory,
                      const std::string &ifileName, const std::string &ipathId) {
   penvex::record::loadPath(profileBaseController, idirectory, ifileName,
@@ -46,8 +49,6 @@ void loadProfileBase(const std::string &idirectory,
 }
 
 // INTAKE:
-
-penvex::record::subsystemPathFileData intakePDat;
 
 std::shared_ptr<okapi::Motor> intakeL;
 std::shared_ptr<okapi::Motor> intakeR;
@@ -141,10 +142,6 @@ void initialize() {
 
   // BASE init:
 
-  basePDat = {.extension = ".base",
-              .bytesPerFrame = 5 * 8, // 8 bytes in a double
-              .loadFunction = loadProfileBase};
-
   baseFL = std::make_shared<okapi::Motor>(-19);
   baseFR = std::make_shared<okapi::Motor>(17);
 
@@ -187,11 +184,11 @@ void initialize() {
 
   imuZ->calibrate();
 
-  // INTAKE init:
+  imuY = std::make_shared<okapi::IMU>(6, okapi::IMUAxes::y);
 
-  intakePDat = {.extension = ".intake",
-                .bytesPerFrame = 2 * 8, // 8 bytes in a double
-                .loadFunction = loadProfileIntake};
+  imuY->calibrate();
+
+  // INTAKE init:
 
   intakeL = std::make_shared<okapi::Motor>(10);
   intakeR = std::make_shared<okapi::Motor>(-15);
@@ -232,10 +229,15 @@ void initialize() {
 
   penvex::Macro::initRunner(numberOfSubsystems);
 
-  scripts::initMacroTest();
-  scripts::initMacroTest2();
+  scripts::testMacro::init();
+  scripts::test2Macro::init();
 
   penvex::record::initRecordMacro();
+
+  // Init the auto selector and the auto init func
+
+  penvex::LCDSelector::init();
+  penvex::LCDSelector::autonSelectorMacro->run();
 }
 
 /**
@@ -267,7 +269,17 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {}
+void autonomous() {
+  // Init the auton dependencies
+  printf("Started auton\n");
+  // Run the auton function
+  if (penvex::autonFunction != nullptr)
+    (*penvex::autonFunction)();
+  else {
+    printf("No auton selected!");
+    scripts::defaultAuton();
+  }
+}
 
 /**
  * Configuration for the buttons of the robot with the standard syntax:
@@ -370,7 +382,7 @@ void opcontrol() {
     }
 
     if (buttonLeft.changedToReleased()) {
-      scripts::macroTest2->run();
+      scripts::testMacro::run();
       // okapi::OdomState cur = base->getState();
       // double currentTheta = imuZ->getRemapped(-PI, PI) +
       // crapOdomStartOffTheta;

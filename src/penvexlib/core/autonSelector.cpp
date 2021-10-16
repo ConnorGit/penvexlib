@@ -8,11 +8,19 @@
 #include "main.h"
 
 using namespace pros::lcd;
-using namespace penvex;
 
-namespace LCDSelector {
+namespace penvex::LCDSelector {
 
-pros::Task *_LCDSelectorTask;
+/**
+ * The macro object which contains both the macro function to
+ * run in its own task and an identifactaion for the subsystems running in it to
+ * allow the macro to break if a subsystem is interupted.
+ *
+ * If restart is set to true then all dynamicaly allocated memory in the macro
+ * must be cleaned.
+ */
+// NOTE: The auton selector runs the auton Init function
+Macro *autonSelectorMacro;
 
 void _cls() {
   for (int i = 0; i < 8; i++)
@@ -110,18 +118,27 @@ void _LCDRunnerTaskFunc(void *param) {
     for (int i = 0; i < NUMBER_OF_AUTONS; i++)
       autonNames.push_back(Autons[i].name);
     int tempAutoNumber = _lcdVectorSelector(autonNames, "[auton]");
-    autonFunction = Autons[tempAutoNumber].autoFuncPtr;
-    autonInitFunction = Autons[tempAutoNumber].autoInitPtr;
-    autonFreeDatFunction = Autons[tempAutoNumber].autoFreeDatPtr;
 
     print(0, "Init auto mem...");
 
     // This is a bit of a hack
+
+    // Avoid possibly halting the cpu with no waits durring a large init
+    autonSelectorMacro->setPriority(TASK_PRIORITY_DEFAULT - 1);
     (*Autons[tempAutoNumber]
           .autoInitPtr)(); // Generates the paths and inits for the chosen auton
+    autonSelectorMacro->setPriority();
 
     _cls();
+
+    // This occures after the init function is run so that if autonInitFunction
+    // is set init will have been run
+    autonFunction = Autons[tempAutoNumber].autoFuncPtr;
+    autonInitFunction = Autons[tempAutoNumber].autoInitPtr;
+    autonFreeDatFunction = Autons[tempAutoNumber].autoFreeDatPtr;
+
     print(0, "Init Fin.");
+
     pros::Task::delay(800);
     _cls();
     print(0, "Reset auto: RIGHT");
@@ -139,17 +156,6 @@ void _LCDRunnerTaskFunc(void *param) {
 }
 
 /**
- * The macro object which contains both the macro function to
- * run in its own task and an identifactaion for the subsystems running in it to
- * allow the macro to break if a subsystem is interupted.
- *
- * If restart is set to true then all dynamicaly allocated memory in the macro
- * must be cleaned.
- */
-// NOTE: The auton selector runs the auton Init function
-Macro *autonSelectorMacro;
-
-/**
  * This function should be called in init this macro in initalise at the start
  * of the program
  *
@@ -164,4 +170,4 @@ void init() {
   autonSelectorMacro->init();
 }
 
-} // namespace LCDSelector
+} // namespace penvex::LCDSelector

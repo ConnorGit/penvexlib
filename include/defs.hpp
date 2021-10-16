@@ -19,15 +19,16 @@ enum macroIds : unsigned int {
   CONVEYOR = 0b10000
 };
 
-// Needed for stpring recorded paths.
-extern penvex::record::subsystemPathFileData basePDat, intakePDat;
-
 extern std::shared_ptr<okapi::Motor> baseFL;
 extern std::shared_ptr<okapi::Motor> baseFR;
 
 extern std::shared_ptr<okapi::OdomChassisController> base;
 
 extern std::shared_ptr<okapi::AsyncMeshMpPpController> profileBaseController;
+
+extern std::shared_ptr<okapi::IMU> imuZ;
+
+extern std::shared_ptr<okapi::IMU> imuY; // Pitch
 
 extern std::shared_ptr<okapi::Motor> intakeL;
 extern std::shared_ptr<okapi::Motor> intakeR;

@@ -81,13 +81,12 @@ void Macro::run(void *macroFuncParams) {
 }
 
 void Macro::init() {
-  std::uint32_t tempPrio = this->prio;
-  this->prio = TASK_PRIORITY_MIN;
+  this->macroTask->set_priority(TASK_PRIORITY_MIN);
 
   this->run();
   this->macroTask->suspend();
 
-  this->prio = tempPrio;
+  this->macroTask->set_priority(this->prio);
 
   runningMacroMutex.take(TIMEOUT_MAX);
   for (int i = 0; i < numberOfSubsystems; i++)
@@ -132,5 +131,13 @@ unsigned int Macro::getAllUsedSubsystems() {
 }
 
 unsigned int Macro::getUsedSubsystems() { return this->usedSubsystems; }
+
+std::uint32_t Macro::getPriority() { return this->macroTask->get_priority(); }
+
+void Macro::setPriority() { this->macroTask->set_priority(this->prio); }
+
+void Macro::setPriority(std::uint32_t prio) {
+  this->macroTask->set_priority(prio);
+}
 
 } // namespace penvex

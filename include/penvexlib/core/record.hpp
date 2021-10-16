@@ -23,24 +23,6 @@ extern penvex::Macro *recordMacro;
 extern void initRecordMacro();
 
 /**
- * Countains the data needed to interact with the path files (poorly).
- * One should be defined globaly for each subsystem.
- *
- * The procedure for storing paths is defined in the macro function.
- *
- * All of this is unique to each subsystem, meaning that each will need a unique
- * inplementation of a loadFunction (likely uning the two penvex loads).
- * One thing to note for future inlementtion is that this would be done
- * differently if each profile controller had a conveinent sharred parent
- */
-struct subsystemPathFileData {
-  std::string extension;
-  int bytesPerFrame;
-  void (*loadFunction)(const std::string &, const std::string &,
-                       const std::string &);
-};
-
-/**
  * Returns unused file name for recording based on if the master exists.
  */
 extern std::string getNewRecID(const std::string &idirectory);

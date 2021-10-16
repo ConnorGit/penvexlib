@@ -23,11 +23,26 @@ extern void auton1FreeDat();
 
 // Macros
 
-extern penvex::Macro *macroTest;
-extern void initMacroTest();
+namespace testMacro {
+extern penvex::Macro *macro;
+extern void init();
+extern void run();
+extern void remove();
+} // namespace testMacro
 
-extern penvex::Macro *macroTest2;
-extern void initMacroTest2();
+namespace test2Macro {
+extern penvex::Macro *macro;
+extern void init();
+extern void run();
+extern void remove();
+} // namespace test2Macro
+
+namespace balanceMacro {
+extern penvex::Macro *macro;
+extern void init();
+extern void run();
+extern void remove();
+} // namespace balanceMacro
 
 } // namespace scripts
 #endif // _SCRIPTS_HPP_
