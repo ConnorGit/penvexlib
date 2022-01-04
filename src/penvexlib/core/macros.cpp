@@ -10,6 +10,9 @@
 
 namespace penvex {
 
+// NOTE: something odd is going on with task priority that I need to sort out
+// sometime
+
 unsigned int Macro::numberOfSubsystems = 0;
 Macro **Macro::runningMacros;
 pros::Mutex Macro::runningMacroMutex;
@@ -37,7 +40,7 @@ void Macro::initRunner(unsigned int inumberOfSubsystems) {
 
 void Macro::breakMacros(unsigned int subsystemsToBreak) {
   runningMacroMutex.take(TIMEOUT_MAX);
-
+  // printf("break\n");
   // Bitwise & used as a mask for usedSubsustems
   for (int i = 0; i < numberOfSubsystems; i++)
     if ((runningMacros[i] != nullptr) &&
@@ -62,6 +65,8 @@ void Macro::run(void *macroFuncParams) {
 
   // End all macros that conflict in subsystem usage
   breakMacros(this->usedSubsystems);
+  // printf("run\n");
+  pros::Task::delay(10);
   // Run the macro
   if ((this->macroTask != nullptr) &&
       this->macroTask->get_state() == pros::E_TASK_STATE_SUSPENDED)
@@ -81,11 +86,14 @@ void Macro::run(void *macroFuncParams) {
 }
 
 void Macro::init() {
-  this->macroTask->set_priority(TASK_PRIORITY_MIN);
+  // macrotask not guarinteed to exist until run is called
+  std::uint32_t tempPrio = this->prio;
+  this->prio = TASK_PRIORITY_MIN;
 
   this->run();
   this->macroTask->suspend();
 
+  this->prio = tempPrio;
   this->macroTask->set_priority(this->prio);
 
   runningMacroMutex.take(TIMEOUT_MAX);
@@ -137,6 +145,7 @@ std::uint32_t Macro::getPriority() { return this->macroTask->get_priority(); }
 void Macro::setPriority() { this->macroTask->set_priority(this->prio); }
 
 void Macro::setPriority(std::uint32_t prio) {
+  this->prio = prio;
   this->macroTask->set_priority(prio);
 }
 

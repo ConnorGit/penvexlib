@@ -18,7 +18,10 @@ namespace scripts::testMacro {
 void macro_func(void *) {
   printf("\nstarting macroTest");
   while (true) {
-    base->turnToAngle(90_deg);
+    // base->turnToAngle(90_deg);
+    base->moveDistance(5_ft);
+    pros::Task::delay(5000);
+    base->moveDistance(-5_ft);
     pros::Task::delay(5000);
     // printf("%f\n", baseFL->getPosition());
     // OdomState state = base->getOdometry()->getState();
@@ -43,7 +46,8 @@ Macro *macro;
  * of the program
  */
 void init() {
-  macro = new Macro(0b10000, macro_func, false);
+  macro = new Macro(0b1, macro_func, false);
+  // printf("begin intit\n");
   macro->init();
 }
 

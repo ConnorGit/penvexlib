@@ -33,6 +33,8 @@ void (*penvex::autonFreeDatFunction)(void) = scripts::defaultAutonFreeDat;
 
 std::shared_ptr<okapi::Motor> baseFL;
 std::shared_ptr<okapi::Motor> baseFR;
+std::shared_ptr<okapi::Motor> baseBL;
+std::shared_ptr<okapi::Motor> baseBR;
 
 std::shared_ptr<okapi::OdomChassisController> base;
 
@@ -155,7 +157,7 @@ void initialize() {
   // ChassisControllerBuilder - I am just telling it the wheels are three times
   // as big trn{0.0013, 0.0003, 0.00002} ang{0.00135, 0.0005, 0.00002}
   base = okapi::ChassisControllerBuilder()
-             .withMotors({-20, -19}, {18, 17})
+             .withMotors({20, -19}, {18, -17})
              .withSensors(okapi::IntegratedEncoder{19, true},
                           okapi::IntegratedEncoder{17, false},
                           okapi::ADIEncoder{'G', 'H', true})
@@ -227,6 +229,8 @@ void initialize() {
           .buildLinearMotionProfileControllerMod();
   pros::Task::delay(10);
 
+  // printf("mac\n");
+  // pros::Task::delay(10);
   penvex::Macro::initRunner(numberOfSubsystems);
 
   scripts::testMacro::init();
@@ -238,6 +242,9 @@ void initialize() {
 
   penvex::LCDSelector::init();
   penvex::LCDSelector::autonSelectorMacro->run();
+
+  printf("Finished Init\n");
+  pros::Task::delay(10);
 }
 
 /**
@@ -321,6 +328,7 @@ void autonomous() {
  * task, not resume it from where it left off.
  */
 void opcontrol() {
+  printf("op\n");
   base->stop();
   profileBaseController->flipDisable(true);
   profileIntakeController->flipDisable(true);
